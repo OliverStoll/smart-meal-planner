@@ -1,9 +1,10 @@
 from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from utils.config import create_logger
 import pandas as pd
 import requests
+
+from utils.config import create_logger
 
 
 class HelloFreshScraper:

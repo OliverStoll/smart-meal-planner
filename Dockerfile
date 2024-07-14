@@ -1,9 +1,7 @@
 FROM python:3.11
 WORKDIR /app
-COPY pyproject.toml ./
-RUN pip install poetry
-RUN poetry config virtualenvs.create false
-RUN poetry install --with cloud --without dev
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 COPY . .
 
 EXPOSE 8080

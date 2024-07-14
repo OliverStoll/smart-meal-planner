@@ -1,2 +1,9 @@
-selenium
+selenium~=4.22.0
 my-common-utils
+pandas~=2.2.2
+python-dotenv~=1.0.1
+uvicorn~=0.30.1
+fastapi~=0.111.0
+telebot~=0.0.5
+requests~=2.32.3
+my-common-utils~=0.6.0

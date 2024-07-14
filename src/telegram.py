@@ -1,11 +1,8 @@
 import telebot
-import random
-import pandas as pd
 from os import getenv
 from dotenv import load_dotenv
 
 from utils.logger import create_logger
-from utils.config import load_config_yaml, get_root_dir
 
 from meal_manager import HF_Meal_Manager
 
