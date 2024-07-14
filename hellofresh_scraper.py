@@ -114,22 +114,25 @@ class HelloFreshScraper:
 
 def download_pdf(url, save_path):
     response = requests.get(url)
-    if response.status_code == 200:
-        with open(save_path, 'wb') as f:
-            f.write(response.content)
-        print(f"Downloaded: {save_path}")
-    else:
-        print(f"Failed to download: {url}")
+    assert response.status_code == 200, f"Error in downloading pdf: {response.status_code}"
+    assert response.headers['Content-Type'] == 'application/pdf', f"Error in downloading pdf: {response.headers['Content-Type']}"
+    with open(save_path, 'wb') as f:
+        f.write(response.content)
 
 
 def download_all_pdfs():
-    df = pd.read_csv('hellofresh_recipes.csv')
+    df = pd.read_csv('hellofresh-scraper/hellofresh_recipes.csv')
+    counter = 0
     for idx, row in df.iterrows():
+        print(f"[{idx+1}/{len(df)}] ", end='')
+        pdf_title = row['title'].replace(' ', '_').replace(':', ',')
         try:
-            download_pdf(row['pdf_link'], f"pdfs/{row['title'].replace(' ', '_')}.pdf")
+            download_pdf(row['pdf_link'], f"pdfs/{pdf_title}.pdf")
+            print(f"Downloaded {pdf_title}")
+            counter += 1
         except Exception as e:
             print(f"Error in downloading pdf: {e}")
-
+    print(f"Downloaded {counter} PDFs")
 
 
 
