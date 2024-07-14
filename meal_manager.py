@@ -38,7 +38,7 @@ class HF_Meal_Manager:
         for idx, row in ingredients_df.iterrows():
             unit = row['unit'].replace('Stück', '')
             ingredients_str += f"{row['quantity']:4.0f} {unit:2} {row['name']}\n"
-        print(ingredients_str)
+        return ingredients_str
 
 
     def _get_ingredient_data(self, recipes):

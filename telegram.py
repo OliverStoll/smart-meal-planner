@@ -9,6 +9,7 @@ from utils.config import load_config_yaml, get_root_dir
 
 from meal_manager import HF_Meal_Manager
 
+load_dotenv()
 manager = HF_Meal_Manager()
 bot = telebot.TeleBot(getenv('TELEGRAM_BOT_TOKEN'))
 log = create_logger("Telegram Meal Bot")
@@ -48,7 +49,7 @@ def send_meal(message):
     bot.send_message(chat_id=message.chat.id, text=response, parse_mode='Markdown')
     for pdf in pdf_paths:
         with open(pdf, 'rb') as file:
-            bot.send_document(chat_id=message.chat.id, data=file)
+            bot.send_document(chat_id=message.chat.id, document=file)
 
 
 if __name__ == "__main__":
