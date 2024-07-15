@@ -44,8 +44,8 @@ class HF_Meal_Manager:
         ingredients_str = ""
         for idx, row in ingredients_df.iterrows():
             unit = row['unit'].replace('Stück', '')
-            ingredients_str += f"{row['quantity']:3.0f} {unit:2} {row['name']}\n"
-        ingredients_str = self._fix_ingredient_str_for_telegram(ingredients_str)
+            ingredients_str += f"{row['quantity']:3.0f}  {unit:2} {row['name']}\n"
+        # ingredients_str = self._fix_ingredient_str_for_telegram(ingredients_str)
         return ingredients_str
 
     def _fix_ingredient_str_for_telegram(self, ingredient_str):
@@ -53,7 +53,6 @@ class HF_Meal_Manager:
         ingredient_str = ingredient_str.replace(' g  ', ' g   ')
         lines = ingredient_str.split('\n')
         doubled_lines = []
-
         for line in lines:
             if line.startswith('  '):
                 doubled_line = '    ' + line[2:]

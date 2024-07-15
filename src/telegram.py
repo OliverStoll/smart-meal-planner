@@ -13,12 +13,12 @@ log = create_logger("Telegram Meal Bot")
 
 
 def start_bot():
-    log.info("Bot is running!")
-    try:
-        bot.polling()
-    except Exception as e:
-        log.error(f"Error while running the Bot: {e}")
-        raise e
+    while True:
+        log.info("Starting Bot!")
+        try:
+            bot.polling()
+        except Exception as e:
+            log.error(f"Error while running the Bot: {e}")
 
 
 @bot.message_handler(commands=['start', 'help'])
@@ -29,10 +29,13 @@ def send_intro(message):
     bot.send_message(chat_id=message.chat.id, text=response)
 
 
-@bot.message_handler(commands=['gericht'])
+@bot.message_handler(commands=['gericht', 'Gericht'])
 def send_meal(message):
     command = message.text.split(" ")
-
+    if len(command) != 2:
+        response = "Bitte gib eine Zahl an, z.B. /gericht 3"
+        bot.send_message(chat_id=message.chat.id, text=response)
+        return
     try:
         num_meals = int(command[1])
     except ValueError:
@@ -40,9 +43,10 @@ def send_meal(message):
         bot.send_message(chat_id=message.chat.id, text=response)
         return
 
-    groceries, pdf_paths = manager.get_recipes(num_meals)
-    response = f"**Einkaufsliste für {num_meals} Gerichte:**\n{groceries}"
-    log.info(f"Sending meal: {response}")
+    groceries_response, pdf_paths = manager.get_recipes(num_meals)
+    # send meal as code block
+    response = f"```  {groceries_response}```"
+    log.info(f"Sending meal: {groceries_response}")
     bot.send_message(chat_id=message.chat.id, text=response, parse_mode='Markdown')
     for pdf in pdf_paths:
         with open(pdf, 'rb') as file:
