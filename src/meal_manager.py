@@ -7,13 +7,15 @@ from utils.logger import create_logger
 
 class HF_Meal_Manager:
     log = create_logger('HF-Messager')
-    file_path = 'hellofresh_recipes.csv'
-    home_ingredients = ['zwiebel', 'schalotte', 'knoblauch', 'ketchup', 'tomatenmark', 'hartkäse', 'gemüsebrüh', 'reis', 'piment', 'senf']
+    file_path = '../data/unique_recipes.csv'
+    ingredients_df_path = '../data/ingredients.csv'
+    pdf_path = '../pdfs'
+    home_ingredients = ['zwiebel', 'schalotte', 'knoblauch', 'ketchup', 'tomatenmark', 'hartkäse', 'gemüsebrüh', 'reis', 'piment', 'senf', 'wasser']
+    category_order = ['Obst', 'Gemüse', 'Gewürze', 'Brot', 'Fleisch', 'Milchprodukte', 'Verschiedenes']
 
     def __init__(self):
         self.recipe_df = pd.read_csv(self.file_path)
-        self.recipe_df = self.recipe_df.dropna()
-        self.recipe_df['ingredients'] = self.recipe_df['ingredients'].str.replace('½', '0.5').str.replace('¼', '0.25').str.replace('¾', '0.75')
+        self.ingredients_df = pd.read_csv(self.ingredients_df_path)
 
     def get_recipes(self, num_recipes):
         recipes = self.recipe_df.sample(num_recipes)
@@ -24,7 +26,7 @@ class HF_Meal_Manager:
     def get_recipe_pdfs(self, recipes):
         titles = recipes['title'].tolist()
         self.log.info(f"Recipes: {titles}")
-        pdf_paths = [f"pdfs/{title.replace(' ', '_').replace(':', ',')}.pdf" for title in titles]
+        pdf_paths = [f"{self.pdf_path}/{title.replace(' ', '_').replace(':', ',')}.pdf" for title in titles]
         for pdf in pdf_paths:
             if not os.path.exists(pdf):
                 self.log.error(f"PDF not found: {pdf}")
@@ -34,11 +36,34 @@ class HF_Meal_Manager:
 
     def get_ingredients_summary(self, recipes):
         ingredients_df = self._get_ingredient_data(recipes)
+        ingredients_df = pd.merge(ingredients_df, self.ingredients_df[['name', 'category']], on='name', how='left')
+        ingredients_df['category'] = pd.Categorical(ingredients_df['category'],
+                                                    categories=self.category_order,
+                                                    ordered=True)
+        ingredients_df = ingredients_df.sort_values('category')
         ingredients_str = ""
         for idx, row in ingredients_df.iterrows():
             unit = row['unit'].replace('Stück', '')
-            ingredients_str += f"{row['quantity']:4.0f} {unit:2} {row['name']}\n"
+            ingredients_str += f"{row['quantity']:3.0f} {unit:2} {row['name']}\n"
+        ingredients_str = self._fix_ingredient_str_for_telegram(ingredients_str)
         return ingredients_str
+
+    def _fix_ingredient_str_for_telegram(self, ingredient_str):
+        ingredient_str = ingredient_str.replace('    ', '      ')
+        ingredient_str = ingredient_str.replace(' g  ', ' g   ')
+        lines = ingredient_str.split('\n')
+        doubled_lines = []
+
+        for line in lines:
+            if line.startswith('  '):
+                doubled_line = '    ' + line[2:]
+            elif line.startswith(' '):
+                doubled_line = '  ' + line[1:]
+            else:
+                doubled_line = line
+            doubled_lines.append(doubled_line)
+
+        return '\n'.join(doubled_lines)
 
 
     def _get_ingredient_data(self, recipes):
@@ -53,7 +78,6 @@ class HF_Meal_Manager:
         all_ingredients = []
         for ingredient_list_str in ingredients_series:
             ingredient_list = ast.literal_eval(ingredient_list_str)
-            self.log.debug(f"Ingredients: {len(ingredient_list)}")
             for ingredient in ingredient_list:
                 all_ingredients.append(ingredient)
         return all_ingredients
@@ -73,6 +97,8 @@ class HF_Meal_Manager:
 
 if __name__ == '__main__':
     messager = HF_Meal_Manager()
-    df = messager.get_recipes(3)
+    groceries, pdf_paths = messager.get_recipes(3)
+    print(groceries)
+
 
 
