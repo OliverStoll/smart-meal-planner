@@ -78,6 +78,5 @@ docker push europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal
 
 ### Now you can deploy using gcloud sdk:
 ```bash
-gcloud run deploy telegram-meal-bot  --allow-unauthenticated
---image=europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot:latest --region=europe-west1 --project=notion-api-sync
+gcloud run deploy telegram-meal-bot  --allow-unauthenticated --image=europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot:latest --region=europe-west1 --project=notion-api-sync
 ```
