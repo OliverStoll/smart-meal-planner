@@ -14,6 +14,8 @@ from settings_handler import SettingsHandler
 from message_handler import MessageHandler
 
 
+
+
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
     meal_manager = HF_Meal_Manager()
@@ -27,7 +29,7 @@ class TelegramBot:
 
     def __init__(self):
         load_dotenv()
-        self.bot = TeleBotWrapper()
+        self.bot = telebot.TeleBot(getenv('TELEGRAM_BOT_TOKEN'))
         self.options_handler = SettingsHandler(self.bot, self.meal_manager)
         self.message_handler = MessageHandler(self.options_handler, self.meal_manager, self.bot)
         self.subscriptions_handler = SubscriptionHandler(self.bot, self.message_handler)
@@ -40,7 +42,7 @@ class TelegramBot:
         while True:
             self.log.info("Starting Bot!")
             try:
-                self.bot.bot.polling()
+                self.bot.polling()
             except Exception as e:
                 self.log.error(f"Error (restarting bot in {self.restart_time}): {e}")
                 if debug:
@@ -49,12 +51,12 @@ class TelegramBot:
             self.log.info("Restarting Bot!")
 
     def setup_handlers(self):
-        @self.bot.bot.message_handler(commands=['start', 'help'])
+        @self.bot.message_handler(commands=['start', 'help'])
         def send_intro(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
             self.bot.send_message(chat_id=message.chat.id, text=self.intro_response, parse_mode='Markdown')
 
-        @self.bot.bot.message_handler(commands=['optionen', 'options', 'einstellungen', 'settings'])
+        @self.bot.message_handler(commands=['optionen', 'options', 'einstellungen', 'settings'])
         def change_options(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
             response = "Hier kannst du deine Einstellungen anpassen:"
@@ -69,7 +71,7 @@ class TelegramBot:
             )
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 
-        @self.bot.bot.callback_query_handler(func=lambda call: True)
+        @self.bot.callback_query_handler(func=lambda call: True)
         def options_callback(call):
             self.log.debug(f"[{call.message.chat.username}] Received callback query: {call.data}")
             if call.data.startswith('settings_'):
@@ -78,16 +80,19 @@ class TelegramBot:
                 self.options_handler.handle_user_setting_callback(call)
             elif call.data.startswith('gerichte_'):
                 num_meals = int(call.data.replace('gerichte_', ''))
-                self.message_handler.send_meals_message(call.message.chat.id, num_meals)
+                self.message_handler.send_meals_message(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    num_meals=num_meals)
             elif call.data.startswith('woechentlich_'):
                 self.subscriptions_handler.handle_subscription_callback(call)
             elif call.data.startswith('replace_'):
-                idx = int(call.data.replace('replace_', ''))
-                self.message_handler.replace_meal(call, idx)
-            elif call.data == 'delete':
-                self.bot.delete_last_message(call.message.chat.id)
+                data = call.data.split('_')[1:]
+                idx = int(data[0])
+                ingredients_msg_id = int(data[1])
+                self.message_handler.replace_meal(call, idx, ingredients_msg_id)
 
-        @self.bot.bot.message_handler(commands=['gerichte'])
+        @self.bot.message_handler(commands=['gerichte'])
         def send_meal(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
             keyboard = InlineKeyboardMarkup(row_width=3)
@@ -96,7 +101,7 @@ class TelegramBot:
             response = "Wie viele Gerichte möchtest du?"
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 
-        @self.bot.bot.message_handler(commands=['woechentlich'])
+        @self.bot.message_handler(commands=['woechentlich'])
         def send_meal(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
             keyboard = InlineKeyboardMarkup()
@@ -113,7 +118,7 @@ class TeleBotWrapper:
     def __init__(self):
         self.bot = telebot.TeleBot(getenv('TELEGRAM_BOT_TOKEN'))
         self.messages = {}
-    
+
     def send_message(self, chat_id, text, reply_markup=None, parse_mode=None):
         message = self.bot.send_message(
             chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=parse_mode

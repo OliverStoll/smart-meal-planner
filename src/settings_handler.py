@@ -32,24 +32,36 @@ class SettingsHandler:
         setting = call.data.replace('settings_', '')
         response = self.settings_query_messages[setting]
         keyboard = InlineKeyboardMarkup()
-        keyboard.row(
-            *[InlineButton(f"{str(i).capitalize()}", callback_data=f'option_{setting}_{i}')
-              for i in self.setting_query_options[setting]]
+        keyboard_buttons = [
+            InlineButton(f"{str(i).capitalize()}", callback_data=f'option_{setting}_{i}')
+            for i in self.setting_query_options[setting]
+        ]
+        keyboard.row(*keyboard_buttons)
+        self.bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=response,
+            reply_markup=keyboard
         )
-        self.bot.send_message(chat_id=call.message.chat.id, text=response, reply_markup=keyboard)
 
     def handle_user_setting_callback(self, call):
-        option, value = call.data.replace('option_', '').split('_')
+        setting_name, setting_value = call.data.replace('option_', '').split('_')
         try:
-            value = int(value)
+            setting_value = int(setting_value)
         except ValueError:
             pass
-        self.set_user_setting(chat_id=call.message.chat.id, setting_name=option, value=value)
-        response = f"Du hast {self.settings_friendly_names[option]}: {value} eingestellt!"
-        if option in ['max-duration', 'meal-type', 'cal-min']:
+        self.set_user_setting(
+            chat_id=call.message.chat.id, setting_name=setting_name, value=setting_value
+        )
+        response = f"Du hast {self.settings_friendly_names[setting_name]}: {setting_value} eingestellt!"
+        if setting_name in ['max-duration', 'meal-type', 'cal-min']:
             num_meal_options = self.get_num_of_options(call.message.chat.id)
             response += f" \nEs gibt insgesamt {num_meal_options} passende Gerichte."
-        self.bot.send_message(chat_id=call.message.chat.id, text=response)
+        self.bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=response
+        )
 
     def set_user_setting(self, chat_id, setting_name, value):
         with open(self.user_settings_path, 'r') as file:

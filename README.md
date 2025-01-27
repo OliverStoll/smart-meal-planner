@@ -63,20 +63,20 @@ cd docs
 - check you installed all dependencies using `poetry add` and not `pip install`
 ```bash
 # build docker image
-docker build -t europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot .
+docker build -t us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot .
 ```
 
 ```bash
 # test locally
-docker run -p 8080:8080 europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
+docker run -p 8080:8080 us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
 ```
 
 ```bash
 # push to artifact registry
-docker push europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
+docker push us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
 ```
 
 ### Now you can deploy using gcloud sdk:
 ```bash
-gcloud run deploy telegram-meal-bot  --allow-unauthenticated --image=europe-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot:latest --region=europe-west1 --project=notion-api-sync
+gcloud run deploy telegram-meal-bot  --allow-unauthenticated --image=us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot:latest --region=us-west1 --project=notion-api-sync
 ```
