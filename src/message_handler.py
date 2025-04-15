@@ -20,15 +20,24 @@ class MessageHandler:
                           f"á {portions} Portionen:**\n")
         return title_response
 
-    def send_meals_message(self, chat_id, num_meals, message_id=None, recipes=None):
+    def send_meals_message(self, chat_id: int, num_meals: int, message_id=None, recipes_to_send=None):
+        """ 
+        Sends the meal recipes and shopping list to the user.
+        
+        Args:
+            chat_id: The chat ID of the user.
+            num_meals: The number of meals to send.
+            message_id: The message ID of the previous message (optional).
+            recipes_to_send: The recipes to send (optional).
+        """
         # todo: remove all sent recipes
         portions, meal_type, max_duration, cal_min = self.options_handler.get_user_options(chat_id)
-        if recipes is None:
-            recipes = self.meal_manager.get_recipes_filtered_by_user_settings(
+        if recipes_to_send is None:
+            recipes_to_send = self.meal_manager.get_recipes_filtered_by_user_settings(
                 num_meals, meal_type, max_duration, cal_min
             )
-        self.last_recipes_df[str(chat_id)] = recipes
-        ingredient_shopping_list = self.meal_manager.get_ingredients_shopping_list(recipes, portions)
+        self.last_recipes_df[str(chat_id)] = recipes_to_send
+        ingredient_shopping_list = self.meal_manager.get_ingredients_shopping_list(recipes_to_send, portions)
         title_response = self._get_title_response(num_meals, meal_type, portions)
         message_data = {
             'chat_id': chat_id,
@@ -40,7 +49,7 @@ class MessageHandler:
             ingredient_msg = self.bot.edit_message_text(message_id=message_id, **message_data)
         else:
             ingredient_msg = self.bot.send_message(**message_data)
-        recipes_pdf_paths = self.meal_manager.get_pdf_paths_from_recipes(recipes, portions)
+        recipes_pdf_paths = self.meal_manager.get_pdf_paths_from_recipes(recipes_to_send, portions)
         for idx, recipe_pdf_path in enumerate(recipes_pdf_paths):
             try:
                 with open(recipe_pdf_path, 'rb') as recipe_file:
@@ -71,7 +80,7 @@ class MessageHandler:
             chat_id=chat_id,
             num_meals=len(last_recipes),
             message_id=ingredient_msg_id,
-            recipes=last_recipes,
+            recipes_to_send=last_recipes,
         )
 
 

@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import os
 import uvicorn
 
-from telegram import start_bot
+from telegram import TelegramBot
 
 
 app = FastAPI()

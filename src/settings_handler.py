@@ -1,78 +1,148 @@
 import json
+from dataclasses import dataclass
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
+from telebot import types
+
+
+
+@dataclass
+class SettingsType:
+    name: str
+    friendly_name: str
+    options: list[str | int]
+    default_value: str | int
+    query_message: str
+    confirmation_message: str
+    option_labels: dict[str, str] = None
+    is_filter: bool = False
 
 
 class SettingsHandler:
     user_settings_path = 'data/options.json'
-    settings_friendly_names = {
-        'portions': 'Portionsanzahl',
-        'meal-type': 'Art der Gerichte',
-        'max-duration': 'Kochzeit',
-        'cal-min': 'Kalorien (min.)'
-    }
-    settings_query_messages = {
-        'portions': 'Wähle die Anzahl der Portionen pro Gericht:',
-        'meal-type': 'Wähle die Art der Gerichte:',
-        'max-duration': 'Wähle die maximale Kochzeit (in Minuten):',
-        'cal-min': 'Wähle die minimalen Calorien pro Portion:'
-    }
-    setting_query_options = {
-        'portions': [1, 2, 3, 4, 5, 6],
-        'meal-type': ['alle', 'vegetarisch', 'vegan'],
-        'max-duration': [10, 15, 20, 25, 30, 45, 60, 90],
-        'cal-min': [500, 600, 700, 800, 900]
+    settings: dict[str, SettingsType] = {
+        'portions': SettingsType(
+            name='portions',
+            friendly_name='Portionsanzahl',
+            options=[1, 2, 3, 4, 5, 6],
+            default_value=2,
+            query_message='🍽️ Wähle die Anzahl der Portionen pro Gericht:',
+            confirmation_message='🍽️ Du erhältst jetzt Rezepte für {value} Portionen.',
+        ),
+        'meal-type': SettingsType(
+            name='meal-type',
+            friendly_name='Art der Gerichte',
+            options=['alle', 'vegetarisch', 'vegan', 'protein'],
+            default_value='alle',
+            query_message='🥗 Wähle die Art der Gerichte:',
+            confirmation_message='🥗 Du erhältst jetzt {value} Gerichte.',
+            option_labels={
+                'alle': 'alle',
+                'vegetarisch': 'vegetarische',
+                'vegan': 'vegane',
+                'protein': 'proteinreiche',
+            },
+            is_filter=True,
+        ),
+        'max-duration': SettingsType(
+            name='max-duration',
+            friendly_name='Kochzeit',
+            options=[10, 15, 20, 25, 30, 45, 60, 90],
+            default_value=120,
+            query_message='⏱️ Wähle die maximale Kochzeit (in Minuten):',
+            confirmation_message='⏱️ Deine maximale Kochzeit beträgt {value} Minuten.',
+            is_filter=True,
+        ),
+        'cal-min': SettingsType(
+            name='cal-min',
+            friendly_name='Kalorien (min.)',
+            options=[0, 500, 600, 700, 800, 900],
+            default_value=0,
+            query_message='🔥 Wähle die minimalen Kalorien pro Portion:',
+            confirmation_message='🔥 Du erhältst jetzt Gerichte mit mindestens {value} kcal pro Portion.',
+            is_filter=True,
+        )
     }
 
     def __init__(self, bot, meal_manager):
         self.bot = bot
         self.meal_manager = meal_manager
 
+    def handle_settings_callback(self, setting_name: str, message: types.Message):
+        setting_data = self.settings[setting_name]
 
-    def handle_settings_callback(self, call):
-        setting = call.data.replace('settings_', '')
-        response = self.settings_query_messages[setting]
         keyboard = InlineKeyboardMarkup()
-        keyboard_buttons = [
-            InlineButton(f"{str(i).capitalize()}", callback_data=f'option_{setting}_{i}')
-            for i in self.setting_query_options[setting]
-        ]
+        keyboard_buttons = []
+        for setting_option in setting_data.options:
+            button = InlineButton(
+                text=str(setting_option).capitalize(),
+                callback_data=f'option_{setting_name}_{setting_option}'
+            )
+            keyboard_buttons.append(button)
         keyboard.row(*keyboard_buttons)
+
         self.bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=response,
+            chat_id=message.chat.id,
+            message_id=message.message_id,
+            text=setting_data.query_message,
             reply_markup=keyboard
         )
 
-    def handle_user_setting_callback(self, call):
-        setting_name, setting_value = call.data.replace('option_', '').split('_')
-        try:
-            setting_value = int(setting_value)
-        except ValueError:
-            pass
-        self.set_user_setting(
-            chat_id=call.message.chat.id, setting_name=setting_name, value=setting_value
-        )
-        response = f"Du hast {self.settings_friendly_names[setting_name]}: {setting_value} eingestellt!"
-        if setting_name in ['max-duration', 'meal-type', 'cal-min']:
-            num_meal_options = self.get_num_of_options(call.message.chat.id)
-            response += f" \nEs gibt insgesamt {num_meal_options} passende Gerichte."
-        self.bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=response
-        )
+    def handle_user_setting_callback(self, call_data: str, message: types.Message):
+        """
+        Handles the callback of the user setting selection. Sets the user setting and sends a confirmation message.
 
-    def set_user_setting(self, chat_id, setting_name, value):
+        Args:
+            call_data (str): The data from the callback query.
+            message (types.Message): The original message object used to edit the message and access user data.
+        """
+        setting_name, setting_option = call_data.split('_')
+        chat_id = message.chat.id
+        setting = self.settings[setting_name]
+        setting_option = self._try_convert_str_to_int(setting_option)
+        self.set_user_setting(chat_id=chat_id, setting_name=setting_name, setting_option=setting_option)
+
+        response = self.get_option_confirmation_message(setting=setting, option=setting_option, chat_id=chat_id)
+        self.bot.edit_message_text(chat_id=chat_id, message_id=message.message_id, text=response)
+
+    def get_option_confirmation_message(self, setting: SettingsType, option: str | int, chat_id: int | None = None):
+        """ 
+        Returns a confirmation message for the selected setting option
+        
+        Args:
+            setting (SettingsType): The setting type.
+            option (str | int): The selected option value.
+            chat_id (int | None): The chat ID (optional).
+        """
+        if setting.option_labels and option in setting.option_labels:
+            option = setting.option_labels[option]
+        response = setting.confirmation_message.format(value=option)
+
+        if setting.is_filter:
+            num_meal_options = self.get_num_of_options(chat_id=chat_id)
+            response += f"\n\nEs gibt insgesamt {num_meal_options} passende Gerichte für deine Einstellungen."
+        return response
+
+    def set_user_setting(self, chat_id: int, setting_name: str, setting_option: str | int):
+        """
+        Sets the user setting in the user settings JSON file.
+
+        Args:
+            chat_id: The chat ID of the user.
+            setting_name: The name of the setting to be updated.
+            setting_option: The new value for the setting.
+        """
         with open(self.user_settings_path, 'r') as file:
             options_data = json.load(file)
-        options_data[setting_name][str(chat_id)] = value
+        options_data[setting_name][str(chat_id)] = setting_option
         with open(self.user_settings_path, 'w') as file:
             json.dump(options_data, file)
 
-    def get_user_options(self, chat_id):
+    def get_user_options(self, chat_id: int):
         chat_id = str(chat_id)
         options_file = json.load(open(self.user_settings_path, 'r'))
+        # todo: refactor using settings default values
+        # for setting_name, setting_data in self.settings.items():
+
         portions = options_file['portions'].get(chat_id, 2)
         meal_type = options_file['meal-type'].get(chat_id, 'alle')
         max_duration = options_file['max-duration'].get(chat_id, 120)
@@ -87,3 +157,11 @@ class SettingsHandler:
         recipes_df = self.meal_manager.get_recipes_filtered_by_user_settings(99999, meal_type, max_duration, cal_min)
         num_options = len(recipes_df)
         return num_options
+
+    @staticmethod
+    def _try_convert_str_to_int(value: str):
+        try:
+            value = int(value)
+        except ValueError:
+            pass
+        return value

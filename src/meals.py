@@ -5,19 +5,20 @@ import os
 from utils.logger import create_logger
 
 
-class HF_Meal_Manager:
+class HfMealManager:
+    """ Handles recipe data, generating shopping lists and PDF paths for recipes."""
+
     log = create_logger('HF-Messager')
-    data_path = 'data/cleaned_data_v2.csv'
-    ingredients_df_path = 'data/ingredients_v2.csv'
-    pdf_path = 'data/pdfs_v2_mobile'
+    data_path = 'data/recipes/cleaned_data_v2.csv'
+    ingredients_df_path = 'data/recipes/ingredients_v2.csv'
+    pdf_path = 'data/recipes/pdfs_v2_mobile'
     orig_portions = 2
     home_ingredients = [
         'milder Chili-Mix', 'Gewürzmischung', 'zwiebel', 'schalotte', 'knoblauch',
         'ketchup', 'mayonnaise', 'sojasoße', 'tomatenmark', 'gemüsebrüh', 'piment', 'senf',
         'wasser', 'Madras Curry', 'Madras-Curry', 'Schwarzkümmel'
     ]
-    category_order = ['Obst', 'Gemüse', 'Gewürze', 'Brot', 'Fleisch', 'Haltbares', 'Milchprodukte',
-                      'Verschiedenes']
+    category_order = ['Obst', 'Gemüse', 'Gewürze', 'Brot', 'Fleisch', 'Haltbares', 'Milchprodukte', 'Verschiedenes']
 
     def __init__(self):
         self.recipe_df = pd.read_csv(self.data_path)
@@ -44,21 +45,16 @@ class HF_Meal_Manager:
         return recipes_df
 
     def _filter_recipes_by_meal_type(self, recipes_df: pd.DataFrame, meal_type: str) -> pd.DataFrame:
+        tags = None
         if meal_type == 'vegetarisch':
             tags = ['vegetarisch', 'vegan']
-            recipes_df = recipes_df[
-                recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))
-            ]
+            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))]
         elif meal_type == 'vegan':
             tags = ['vegan']
-            recipes_df = recipes_df[
-                recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))
-            ]
-        elif meal_type == 'alle':
+            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))]
+        elif meal_type == 'protein':
             negativ_tags = ['vegetarisch', 'vegan']
-            recipes_df = recipes_df[
-                recipes_df['tags'].apply(lambda x: not any(tag in x for tag in negativ_tags))
-            ]
+            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: not any(tag in x for tag in negativ_tags))]
         return recipes_df
 
     def get_pdf_title_from_meal_name(self, meal_name: str) -> str:
@@ -160,6 +156,6 @@ class HF_Meal_Manager:
 
 
 if __name__ == '__main__':
-    messager = HF_Meal_Manager()
+    messager = HfMealManager()
     groceries, pdf_paths = messager.get_recipe_ingredients_pdfs(3, meal_type='vegetarisch')
     print(groceries)
