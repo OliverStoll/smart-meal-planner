@@ -3,6 +3,7 @@ import ast
 import os
 
 from utils.logger import create_logger
+from settings_handler import UserSettings
 
 
 class HfMealManager:
@@ -32,16 +33,27 @@ class HfMealManager:
         recipes_pdf_paths = self.get_pdf_paths_from_recipes(recipes, num_portions)
         return ingredient_shopping_list, recipes_pdf_paths
 
-    def get_recipes_filtered_by_user_settings(
-            self, num_recipes: int, meal_type: str, max_duration: int, min_calories: int = 0
-    ) -> pd.DataFrame:
+    def get_recipes_filtered_by_user_settings(self, num_recipes: int, user_settings: UserSettings) -> pd.DataFrame:
+        """
+        Filters the recipes based on user settings and returns a DataFrame of selected recipes.
+
+        Args:
+            num_recipes: The number of recipes to return.
+            user_settings: The user settings containing meal type, max duration, and min calories.
+
+        Returns:
+            A DataFrame containing the filtered recipes.
+        """
         recipes_df = self.recipe_df
-        recipes_df = self._filter_recipes_by_meal_type(recipes_df, meal_type)
-        recipes_df = recipes_df[recipes_df['total_time'] <= max_duration]
-        recipes_df = recipes_df[recipes_df['calories'] >= min_calories]
+        recipes_df = self._filter_recipes_by_meal_type(recipes_df=recipes_df, meal_type=user_settings.meal_type)
+        recipes_df = recipes_df[recipes_df['total_time'] <= user_settings.max_duration]
+        recipes_df = recipes_df[recipes_df['calories'] >= user_settings.cal_min]
+
         if num_recipes < len(recipes_df):
             recipes_df = recipes_df.sample(num_recipes)
+
         recipes_df.reset_index(drop=True, inplace=True)
+
         return recipes_df
 
     def _filter_recipes_by_meal_type(self, recipes_df: pd.DataFrame, meal_type: str) -> pd.DataFrame:

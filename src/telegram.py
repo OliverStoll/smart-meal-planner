@@ -28,11 +28,11 @@ class TelegramBot:
     settings_keyboard = InlineKeyboardMarkup()
     settings_keyboard.row(
         InlineButton('🍽️ Portionsanzahl', callback_data='settings_portions'),
-        InlineButton('🥦 Ernährungsform', callback_data='settings_meal-type'),
+        InlineButton('🥦 Ernährungsform', callback_data='settings_meal_type'),
     )
     settings_keyboard.row(
-        InlineButton('⏱️ Kochzeit', callback_data='settings_max-duration'),
-        InlineButton('🔥 Kalorien (min.)', callback_data='settings_cal-min')
+        InlineButton('⏱️ Kochzeit', callback_data='settings_max_duration'),
+        InlineButton('🔥 Kalorien (min.)', callback_data='settings_cal_min')
     )
 
     def __init__(self, secret_env_name='TELEGRAM_BOT_TOKEN'):
@@ -147,7 +147,7 @@ class TelegramBot:
                 num_meals = int(call.data.replace('gerichte_', ''))
                 self.message_handler.send_meals_message(
                     chat_id=call.message.chat.id,
-                    message_id=call.message.message_id,
+                    message_to_edit_id=call.message.message_id,
                     num_meals=num_meals
                 )
             except ValueError:
