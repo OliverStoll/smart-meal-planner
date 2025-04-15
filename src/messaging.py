@@ -175,26 +175,32 @@ class MessageHandler:
         return ingredient_msg
 
     def resend_messages_to_replace_meal(self, message, meal_idx_to_replace, related_shopping_list_message_id):
-        last_recipes_df = self.last_sent_recipes_df.get(str(message.chat.id), None)
-        if last_recipes_df is None:
-            return
-
+        # TODO: we need to store each recipe global index in the callback to replace it. This way
+        # we can delete the single message, update the shopping list and only sent the new recipe
         chat_id = message.chat.id
-        user_settings = self.settings_handler.get_user_settings(chat_id)
-
-        new_recipe = self.meal_manager.get_recipes_filtered_by_user_settings(
-            num_recipes=1,
-            user_settings=user_settings
+        last_sent_recipes = self.last_sent_recipes_df[str(chat_id)]
+        updated_recipes = self.replace_single_recipe_in_data(
+            last_sent_recipes=last_sent_recipes,
+            meal_idx_to_replace=meal_idx_to_replace,
+            chat_id=chat_id
         )
 
-        last_recipes_df.loc[meal_idx_to_replace] = new_recipe.iloc[0]
         self.bot.delete_message(chat_id=chat_id, message_id=message.message_id)
 
         self.send_meals_message(
             chat_id=chat_id,
-            num_meals=len(last_recipes_df),
+            num_meals=len(updated_recipes),
             previous_shopping_list_message_id=related_shopping_list_message_id,
-            recipes_to_send=last_recipes_df,
+            recipes_to_send=updated_recipes,
         )
+
+    def replace_single_recipe_in_data(self, last_sent_recipes: pd.DataFrame, meal_idx_to_replace: int, chat_id: int):
+        user_settings = self.settings_handler.get_user_settings(chat_id)
+        new_recipe = self.meal_manager.get_recipes_filtered_by_user_settings(
+            num_recipes=1,
+            user_settings=user_settings
+        )
+        last_sent_recipes.loc[meal_idx_to_replace] = new_recipe.iloc[0]
+        return last_sent_recipes
 
 
