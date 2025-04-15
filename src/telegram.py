@@ -9,14 +9,18 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineBu
 from utils.logger import create_logger
 
 from meals import HfMealManager
-from subscription_handler import SubscriptionHandler
-from settings_handler import SettingsHandler
-from message_handler import MessageHandler
+from subscriptions import SubscriptionHandler
+from settings import SettingsHandler
+from messaging import MessageHandler
 
 
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
-    meal_manager = HfMealManager()
+    meal_manager = HfMealManager(
+        data_path='data/unique_recipes.csv',
+        ingredients_df_path='data/ingredients.csv',
+        pdf_paths='pdfs',
+    )
     restart_time = 60
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
@@ -136,7 +140,11 @@ class TelegramBot:
                 _, idx_str, msg_id_str = call.data.split('_')
                 idx = int(idx_str)
                 ingredients_msg_id = int(msg_id_str)
-                self.message_handler.replace_meal(call, idx, ingredients_msg_id)
+                self.message_handler.resend_messages_to_replace_meal(
+                    message=call.message,
+                    meal_idx_to_replace=idx,
+                    related_shopping_list_message_id=ingredients_msg_id
+                )
             except (ValueError, IndexError):
                 self.log.warning(f"Invalid 'replace_' format: {call.data}")
 
@@ -147,7 +155,7 @@ class TelegramBot:
                 num_meals = int(call.data.replace('gerichte_', ''))
                 self.message_handler.send_meals_message(
                     chat_id=call.message.chat.id,
-                    message_to_edit_id=call.message.message_id,
+                    previous_shopping_list_message_id=call.message.message_id,
                     num_meals=num_meals
                 )
             except ValueError:
