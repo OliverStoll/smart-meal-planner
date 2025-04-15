@@ -15,6 +15,14 @@ class SettingsType:
     confirmation_message: str
     option_labels: dict[str, str] = None
     is_filter: bool = False
+    
+
+@dataclass
+class UserSettings:
+    portions: int
+    meal_type: str
+    max_duration: int
+    cal_min: int
 
 
 class SettingsHandler:
@@ -28,8 +36,8 @@ class SettingsHandler:
             query_message='🍽️ Wähle die Anzahl der Portionen pro Gericht:',
             confirmation_message='🍽️ Du erhältst jetzt Rezepte für {value} Portionen.',
         ),
-        'meal-type': SettingsType(
-            name='meal-type',
+        'meal_type': SettingsType(
+            name='meal_type',
             friendly_name='Art der Gerichte',
             options=['alle', 'vegetarisch', 'vegan', 'protein'],
             default_value='alle',
@@ -43,8 +51,8 @@ class SettingsHandler:
             },
             is_filter=True,
         ),
-        'max-duration': SettingsType(
-            name='max-duration',
+        'max_duration': SettingsType(
+            name='max_duration',
             friendly_name='Kochzeit',
             options=[10, 15, 20, 25, 30, 45, 60, 90],
             default_value=120,
@@ -52,8 +60,8 @@ class SettingsHandler:
             confirmation_message='⏱️ Deine maximale Kochzeit beträgt {value} Minuten.',
             is_filter=True,
         ),
-        'cal-min': SettingsType(
-            name='cal-min',
+        'cal_min': SettingsType(
+            name='cal_min',
             friendly_name='Kalorien (min.)',
             options=[0, 500, 600, 700, 800, 900],
             default_value=0,
@@ -137,23 +145,25 @@ class SettingsHandler:
         with open(self.user_settings_path, 'w') as file:
             json.dump(options_data, file)
 
-    def get_user_options(self, chat_id: int):
+    def get_user_settings(self, chat_id: int) -> UserSettings:
         chat_id = str(chat_id)
         options_file = json.load(open(self.user_settings_path, 'r'))
         # todo: refactor using settings default values
-        # for setting_name, setting_data in self.settings.items():
+        user_settings_data = {}
+        for setting_name, setting_data in self.settings.items():
+            setting_value = options_file[setting_name].get(chat_id, setting_data.default_value)
+            setting_value = self._try_convert_str_to_int(setting_value)
+            user_settings_data[setting_name] = setting_value
+            
+        user_settings = UserSettings(**user_settings_data)
 
-        portions = options_file['portions'].get(chat_id, 2)
-        meal_type = options_file['meal-type'].get(chat_id, 'alle')
-        max_duration = options_file['max-duration'].get(chat_id, 120)
-        cal_min = options_file['cal-min'].get(chat_id, 0)
-        return portions, meal_type, max_duration, cal_min
+        return user_settings
 
     def get_num_of_options(self, chat_id):
         options_file = json.load(open(self.user_settings_path, 'r'))
-        meal_type = options_file['meal-type'].get(str(chat_id), None)
-        max_duration = options_file['max-duration'].get(str(chat_id), 999)
-        cal_min = options_file['cal-min'].get(str(chat_id), 0)
+        meal_type = options_file['meal_type'].get(str(chat_id), None)
+        max_duration = options_file['max_duration'].get(str(chat_id), 999)
+        cal_min = options_file['cal_min'].get(str(chat_id), 0)
         recipes_df = self.meal_manager.get_recipes_filtered_by_user_settings(99999, meal_type, max_duration, cal_min)
         num_options = len(recipes_df)
         return num_options
