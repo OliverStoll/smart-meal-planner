@@ -10,7 +10,7 @@ import fitz  # PyMuPDF
 from PIL import Image
 from utils.logger import create_logger
 
-from meals import HF_Meal_Manager
+from meals import HfMealManager
 
 EXAMPLE_PATH = '/data/pdfs_v2/Alpine_Käsespätzlepfanne_mit_Birne_und_Bacon.pdf'
 
@@ -54,7 +54,7 @@ class PDF_Manager:
             f.write(response.content)
 
     def get_pdf_title(self, title):
-        return HF_Meal_Manager().get_pdf_title_from_meal_name(title)
+        return HfMealManager().get_pdf_title_from_meal_name(title)
 
     def download_all_pdfs(self):
         df = pd.read_csv(self.csv_data_path)
@@ -204,7 +204,7 @@ class PDF_Creator:
         )
 
     def insert_page_ingredients(self, pdf, recipe_entry, num_meals):
-        ingredients = HF_Meal_Manager().get_ingredients_shopping_list(
+        ingredients = HfMealManager().get_ingredients_shopping_list(
             pd.DataFrame([recipe_entry]),
             num_meals,
             filter_home_ingredients=False,

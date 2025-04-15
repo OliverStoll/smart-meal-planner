@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import json
 import pickle
+import traceback
 from pandas import DataFrame
 from time import sleep
 import os
@@ -15,7 +16,7 @@ debug_url = "https://www.supermarktcheck.de/product/209354-milram-milch-reis"
 
 class SupermarketScraper:
     log = create_logger("Supermarket Scraper")
-    num_threads = 16
+    num_threads = 20
 
     def __init__(self):
         self.threads = []
@@ -90,7 +91,8 @@ class SupermarketScraper:
                 all_product_results.append(product_results)
                 self.log.debug(f"[{thread_id}][{idx}] {product_results['producer']} | {product_results['title']}")
             except Exception as e:
-                self.log.error(f"[{thread_id}][{idx}] {link} | {e}")
+                exception_type = type(e).__name__
+                self.log.error(f"[{thread_id}][{idx}] {link} | {exception_type}")
         self.threaded_results[thread_id] = all_product_results
 
 
