@@ -30,6 +30,10 @@ class HfMealManager:
         '⅝': '0.625',
         '⅞': '0.875'
     }
+    unit_replace_map = {
+        'Stück': '',
+        'Packung': 'Pk',
+    }
 
     def __init__(
             self,
@@ -157,7 +161,7 @@ class HfMealManager:
         ingredients_df = self._get_ingredient_data(recipes_df, filter_home_ingredients)
         ingredients_df = self._sort_ingredients_data(ingredients_df, sorting)
 
-        ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')
+        ingredients_df['unit'] = ingredients_df['unit'].replace(self.unit_replace_map)
         quantity_factor = float(num_portions / self.orig_portions)
         ingredients_df['quantity'] = ingredients_df['quantity'] * quantity_factor
         ingredients_df['quantity'] = ingredients_df['quantity'].apply(lambda x: int(x) if x == int(x) else x)
