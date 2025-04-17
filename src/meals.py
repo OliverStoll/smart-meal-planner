@@ -164,6 +164,12 @@ class HfMealManager:
         ingredients_df['unit'] = ingredients_df['unit'].replace(self.unit_replace_map)
         quantity_factor = float(num_portions / self.orig_portions)
         ingredients_df['quantity'] = ingredients_df['quantity'] * quantity_factor
+        # round all quantities if unit is not 'Stück'
+        ingredients_df['quantity'] = ingredients_df.apply(
+            lambda x: round(x['quantity']) if x['unit'] != 'Stück' else x['quantity'],
+            axis=1
+        )
+        ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')
         ingredients_df['quantity'] = ingredients_df['quantity'].apply(lambda x: int(x) if x == int(x) else x)
         ingredients_list_str = self._generate_ingredients_shopping_list_text(ingredients_df)
         return ingredients_list_str
@@ -193,9 +199,10 @@ class HfMealManager:
         return ingredients_df
 
     @staticmethod
-    def _generate_ingredients_shopping_list_text(ingredients_df: pd.DataFrame):
+    def _generate_ingredients_shopping_list_text(ingredients_df: pd.DataFrame, min_digits: int = 3) -> str:
         max_quantity = ingredients_df['quantity'].max()
         quantity_digits = len(str(int(max_quantity)))
+        quantity_digits = min(quantity_digits, min_digits)
         ingredients_list_str = ""
         for idx, row in ingredients_df.iterrows():
             if not row['quantity'] == int(row['quantity']):
