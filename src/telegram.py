@@ -16,11 +16,7 @@ from messaging import MessageHandler
 
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
-    meal_manager = HfMealManager(
-        data_path='data/unique_recipes.csv',
-        ingredients_df_path='data/ingredients.csv',
-        pdf_paths='pdfs',
-    )
+    meal_manager = HfMealManager()
     restart_time = 60
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
@@ -139,11 +135,11 @@ class TelegramBot:
             try:
                 _, idx_str, msg_id_str = call.data.split('_')
                 idx = int(idx_str)
-                ingredients_msg_id = int(msg_id_str)
+                shopping_list_msg_id = int(msg_id_str)
                 self.message_handler.resend_messages_to_replace_meal(
                     message=call.message,
                     meal_idx_to_replace=idx,
-                    related_shopping_list_message_id=ingredients_msg_id
+                    related_shopping_list_message_id=shopping_list_msg_id
                 )
             except (ValueError, IndexError):
                 self.log.warning(f"Invalid 'replace_' format: {call.data}")
