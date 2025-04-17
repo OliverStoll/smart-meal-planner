@@ -164,4 +164,8 @@ class HelloFreshScraper:
 
 
 
-
+if __name__ == "__main__":
+    scraper = HelloFreshScraper()
+    scraper.get_all_recipes_details(save_to_csv=True)
+    # scraper.get_recipes_links_of_category('schnelle-gerichte')
+    # scraper.get_single_recipe_details('https://www.hellofresh.de/recipes/vegetarische-gnocchi-mit-brokkoli-und-asiatischem-pesto-64c2f0e7b1a6f4f0d9a8c3d3')
