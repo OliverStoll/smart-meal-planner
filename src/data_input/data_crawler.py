@@ -14,7 +14,7 @@ class HelloFreshScraper:
     log = create_logger('HelloFreshScraper')
     base_link = "https://www.hellofresh.de/recipes/"
     output_path = f'{ROOT_DIR}/data/temp_data'
-    recipe_links_path = f'{output_path}/recipe_links.csv'
+    recipe_links_path = f'{output_path}/links.csv'
 
     def __init__(self):
         self.driver = webdriver.Chrome()
@@ -75,7 +75,9 @@ class HelloFreshScraper:
 
     def load_or_get_recipe_links(self, use_stored_links: bool, save_results: bool = True) -> pd.DataFrame:
         if use_stored_links:
-            return pd.read_csv(self.recipe_links_path)
+            recipe_links_df = pd.read_csv(self.recipe_links_path)
+            self.log.info(f"Loaded {len(recipe_links_df)} Recipe links")
+            return recipe_links_df
 
         category_paths = self._get_recipe_category_paths()
         self.log.info(f"Found {len(category_paths)} categories")
