@@ -5,6 +5,7 @@ from selenium import webdriver
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 import pandas as pd
+from selenium.webdriver.ie.webdriver import WebDriver
 
 from utils.config import create_logger, ROOT_DIR
 
@@ -134,26 +135,32 @@ class HelloFreshScraper:
         link = f"{self.base_link}/{category_path}?page=999"
         self.driver.get(link)
         sleep(load_timer)
-        self._scroll_driver_down()
+        self._scroll_driver_down(driver=self.driver)
         recipe_links = self.driver.find_elements(By.CSS_SELECTOR, link_selector)
         recipe_links_href = self._clean_recipe_links(recipe_links)
         return recipe_links_href
 
-
-    def get_all_recipes_details(self, recipe_link_entries: pd.DataFrame) -> pd.DataFrame:
+    def get_all_recipes_details(
+            self,
+            recipe_link_entries: pd.DataFrame,
+            driver: WebDriver | None = None
+    ) -> pd.DataFrame:
         """
         Scrape all recipes from a list of recipe links.
 
         Args:
             recipe_link_entries: List of recipe dictionaries including links to scrape.
+            driver: Selenium WebDriver instance to use for scraping.
 
         Returns:
             DataFrame containing all recipes details.
         """
+        if driver is None:
+            driver = self.driver
         all_recipes_details = []
         for idx, recipe_data in enumerate(recipe_link_entries.to_dict(orient='records'), start=1):
             try:
-                recipe_values = self.get_single_recipe_details(recipe_data)
+                recipe_values = self.get_single_recipe_details(recipe_data, driver)
                 self.log.debug(f"[{idx:3>}] {recipe_values['title']}")
                 all_recipes_details.append(recipe_values)
             except Exception as e:
@@ -162,16 +169,17 @@ class HelloFreshScraper:
         recipes_df = pd.DataFrame(all_recipes_details)
         return recipes_df
 
-    def get_single_recipe_details(self, recipe_data_entry: dict[str, str]) -> dict:
+    def get_single_recipe_details(self, recipe_data_entry: dict[str, str], driver: WebDriver) -> dict:
         """
         Scrape details of a single recipe from its link.
         """
-        self.driver.get(recipe_data_entry['link'])
+        driver.get(recipe_data_entry['link'])
         for detail_name, detail_scraping_data in self.recipe_details_scraping_data.items():
             try:
                 detail_values = self.get_single_recipe_detail_value(
                     detail_scraping_data=detail_scraping_data,
-                    recipe_detail_link=recipe_data_entry['link']
+                    recipe_detail_link=recipe_data_entry['link'],
+                    driver=driver,
                 )
             except Exception as e:
                 self.log.warning(f"Error in getting {detail_name} from {recipe_data_entry['link']}: {e}")
@@ -183,7 +191,8 @@ class HelloFreshScraper:
     def get_single_recipe_detail_value(
             self,
             detail_scraping_data: dict,
-            recipe_detail_link: str
+            recipe_detail_link: str,
+            driver: WebDriver,
     ) -> dict:
         """
         Get a single recipe detail value using the provided getter function.
@@ -197,7 +206,7 @@ class HelloFreshScraper:
         """
         detail_selector = detail_scraping_data['selector']
         detail_getter_function = detail_scraping_data['getter_function']
-        detail_element = self.driver.find_element(by=By.CSS_SELECTOR, value=detail_selector)
+        detail_element = driver.find_element(by=By.CSS_SELECTOR, value=detail_selector)
         try:
             detail_values = detail_getter_function(detail_element)  # noqa
         except NoSuchElementException:
@@ -223,8 +232,9 @@ class HelloFreshScraper:
     Protected methods
     """
 
-    def _scroll_driver_down(self):
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    @staticmethod
+    def _scroll_driver_down(driver: WebDriver):
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
     @staticmethod
     def _clean_recipe_links(recipe_link_elements: list[webdriver.remote.webelement.WebElement]):
