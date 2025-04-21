@@ -1,7 +1,7 @@
 import json
 import schedule
 import time
-from utils.logger import create_logger
+from common_utils.logger import create_logger
 
 
 class SubscriptionHandler:
