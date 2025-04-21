@@ -4,7 +4,7 @@ import os
 from typing import Literal
 
 from utils.logger import create_logger
-from settings import UserSettings
+from src.settings import UserSettings
 
 
 class HfMealManager:
@@ -37,9 +37,9 @@ class HfMealManager:
 
     def __init__(
             self,
-            data_path='data/recipes/cleaned_data_v2.csv',
-            ingredients_df_path='data/recipes/ingredients_v2.csv',
-            pdf_paths='data/recipes/pdfs_v2_mobile'
+            data_path='data/temp_data/cleaned.csv',                         # 'data/recipes/cleaned_data_v2.csv',
+            ingredients_df_path='data/temp_data/ingredients_manual.csv',    # recipes/ingredients_v2.csv',
+            pdf_paths='data/temp_pdfs'
     ):
         self.recipe_df = pd.read_csv(data_path)
         self.ingredients_df = pd.read_csv(ingredients_df_path)
@@ -166,7 +166,7 @@ class HfMealManager:
         ingredients_df['quantity'] = ingredients_df['quantity'] * quantity_factor
         # round all quantities if unit is not 'Stück'
         ingredients_df['quantity'] = ingredients_df.apply(
-            lambda x: round(x['quantity']) if x['unit'] != 'Stück' else x['quantity'],
+            lambda x: round(x['quantity']) if x['quantity'] > 2 else x['quantity'],
             axis=1
         )
         ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')

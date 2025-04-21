@@ -1,10 +1,12 @@
 import json
 import os
+import pandas as pd
+import numpy as np
+from threading import Thread
 from time import sleep
 from selenium import webdriver
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
-import pandas as pd
 from selenium.webdriver.ie.webdriver import WebDriver
 
 from utils.config import create_logger, ROOT_DIR
@@ -15,6 +17,8 @@ class HelloFreshScraper:
     base_link = "https://www.hellofresh.de/recipes/"
     output_path = f'{ROOT_DIR}/data/temp_data'
     recipe_links_path = f'{output_path}/links.csv'
+    thread_output_path = f'{output_path}/.temp'
+    num_threads = 8
 
     def __init__(self):
         self.driver = webdriver.Chrome()
@@ -22,6 +26,10 @@ class HelloFreshScraper:
             'description': {
                 'selector': 'div[data-test-id="recipe-description"]',
                 'getter_function': self._get_description,
+            },
+            'hero_image': {
+                'selector': 'div[data-test-id="recipe-hero-image"]',
+                'getter_function': self._get_hero_image,
             },
             'times': {
                 'selector': 'div[data-test-id="recipe-description"]',
@@ -45,6 +53,7 @@ class HelloFreshScraper:
             }
         }
         os.makedirs(self.output_path, exist_ok=True)
+        os.makedirs(self.thread_output_path, exist_ok=True)
 
     def get_all_recipes(self, use_stored_links: bool, save_results: bool = True) -> pd.DataFrame:
         """
@@ -57,24 +66,40 @@ class HelloFreshScraper:
         Returns:
             DataFrame containing all recipes details.
         """
-        all_recipe_link_entires = self.load_or_get_recipe_links(
+        recipe_link_entires = self.load_or_get_recipe_links(
             use_stored_links=use_stored_links, save_results=save_results
         )
 
-        recipes_df = self.get_all_recipes_details(recipe_link_entries=all_recipe_link_entires)
-        self.log.info(f"Length raw: {len(recipes_df)}")
-        cleaned_df = self.clean_recipes_df(recipes_df)
-        self.log.info(f"Length cleaned: {len(cleaned_df)}")
+        threads = []
+        recipe_link_entires_split = np.array_split(recipe_link_entires, self.num_threads)
+        for idx, recipe_link_entries in enumerate(recipe_link_entires_split, start=1):
+            save_path = f"{self.thread_output_path}/{idx}_recipes.csv" if save_results else None
+            driver = webdriver.Chrome()
+            thread = Thread(
+                target=self.get_all_recipes_details,
+                args=(recipe_link_entries, save_path, driver),
+            )
+            thread.start()
+            threads.append(thread)
 
-        if save_results:
-            recipes_df.to_csv(f'{self.output_path}/recipes.csv', index=False)
-            cleaned_df.to_csv(f'{self.output_path}/cleaned.csv', index=False)
-            self.log.info("Recipes saved to csv")
+        for thread in threads:
+            thread.join()
 
-        return cleaned_df
+        self.log.info("All threads finished.")
+
+        all_recipes_details = []
+        for idx in range(1, self.num_threads + 1):
+            save_path = f"{self.thread_output_path}/{idx}_recipes.csv"
+            if os.path.exists(save_path):
+                recipes_df = pd.read_csv(save_path)
+                all_recipes_details.append(recipes_df)
+
+        recipes_df = pd.concat(all_recipes_details, ignore_index=True)
+
+        return recipes_df
 
     def load_or_get_recipe_links(self, use_stored_links: bool, save_results: bool = True) -> pd.DataFrame:
-        if use_stored_links:
+        if use_stored_links and os.path.exists(self.recipe_links_path):
             recipe_links_df = pd.read_csv(self.recipe_links_path)
             self.log.info(f"Loaded {len(recipe_links_df)} Recipe links")
             return recipe_links_df
@@ -83,10 +108,6 @@ class HelloFreshScraper:
         self.log.info(f"Found {len(category_paths)} categories")
 
         recipes_df = self.get_all_recipe_links(category_paths=category_paths)
-
-        if save_results:
-            recipes_df.to_csv(self.recipe_links_path, index=False)
-            self.log.info(f"{len(recipes_df)} Recipe links saved to {self.recipe_links_path}")
 
         return recipes_df
 
@@ -120,32 +141,11 @@ class HelloFreshScraper:
         recipes_df['category_friendly'] = recipes_df['category'].str.replace('e-rezepte', '').replace('-rezepte', '')
         return recipes_df
 
-    def get_recipes_links_of_category(
-            self,
-            category_path: str,
-            link_selector: str = 'div[data-test-id="recipe-image-card"] > a',
-            load_timer: int = 2,
-    ):
-        """
-        Get all recipe links from a category page.
-
-        Args:
-            category_path: Category path to scrape.
-            link_selector: CSS selector for recipe links.
-            load_timer: Time to wait for the page to load.
-        """
-        link = f"{self.base_link}/{category_path}?page=999"
-        self.driver.get(link)
-        sleep(load_timer)
-        self._scroll_driver_down(driver=self.driver)
-        recipe_links = self.driver.find_elements(By.CSS_SELECTOR, link_selector)
-        recipe_links_href = self._clean_recipe_links(recipe_links)
-        return recipe_links_href
-
     def get_all_recipes_details(
             self,
             recipe_link_entries: pd.DataFrame,
-            driver: WebDriver | None = None
+            save_path: str = None,
+            driver: WebDriver | None = None,
     ) -> pd.DataFrame:
         """
         Scrape all recipes from a list of recipe links.
@@ -169,7 +169,34 @@ class HelloFreshScraper:
                 self.log.error(f"Error in getting details from {recipe_data['link']}: {e}")
 
         recipes_df = pd.DataFrame(all_recipes_details)
+
+        if save_path:
+            recipes_df.to_csv(save_path, index=False)
+            self.log.info(f"Recipes saved to {save_path}")
+
         return recipes_df
+
+    def get_recipes_links_of_category(
+            self,
+            category_path: str,
+            link_selector: str = 'div[data-test-id="recipe-image-card"] > a',
+            load_timer: int = 2,
+    ):
+        """
+        Get all recipe links from a category page.
+
+        Args:
+            category_path: Category path to scrape.
+            link_selector: CSS selector for recipe links.
+            load_timer: Time to wait for the page to load.
+        """
+        link = f"{self.base_link}/{category_path}?page=999"
+        self.driver.get(link)
+        sleep(load_timer)
+        self._scroll_driver_down(driver=self.driver)
+        recipe_links = self.driver.find_elements(By.CSS_SELECTOR, link_selector)
+        recipe_links_href = self._clean_recipe_links(recipe_links)
+        return recipe_links_href
 
     def get_single_recipe_details(self, recipe_data_entry: dict[str, str], driver: WebDriver) -> dict:
         """
@@ -184,7 +211,7 @@ class HelloFreshScraper:
                     driver=driver,
                 )
             except Exception as e:
-                self.log.warning(f"Error in getting {detail_name} from {recipe_data_entry['link']}: {e}")
+                self.log.warning(f"Error in getting {detail_name} from {recipe_data_entry['link']}: {str(e)}")
                 detail_values = {}
 
             recipe_data_entry.update(detail_values)
@@ -212,23 +239,14 @@ class HelloFreshScraper:
         try:
             detail_values = detail_getter_function(detail_element)  # noqa
         except NoSuchElementException:
-            getter_name = detail_scraping_data.__name__.replace('_get_', '').upper()
-            self.log.warn(f"{getter_name} not found: {recipe_detail_link}")
+            getter_name = detail_scraping_data['getter_function'].__name__.replace('_get_', '').capitalize()
+            self.log.warning(f"{getter_name} not found: {recipe_detail_link}")
             detail_values = {}
         except Exception as e:
-            self.log.warn(f"Error in {detail_scraping_data.__name__}: {recipe_detail_link} - {e}")
+            self.log.warning(f"Error in {detail_scraping_data.__name__}: {recipe_detail_link} - {e}")
             detail_values = {}
 
         return detail_values
-
-    @staticmethod
-    def clean_recipes_df(recipes_df):
-        """
-        Clean the recipes DataFrame by dropping NaN values and duplicates.
-        """
-        cleaned_df = recipes_df.dropna()
-        cleaned_df = cleaned_df.drop_duplicates(subset=['pdf_link'])
-        return cleaned_df
 
     """
     Protected methods
@@ -245,6 +263,14 @@ class HelloFreshScraper:
         recipe_links_href = list(set(recipe_links_href))  # only keep unique links
         return recipe_links_href
 
+    def _get_hero_image(self, description_element):
+        selector = 'img'
+        hero_image_element = description_element.find_element(By.CSS_SELECTOR, selector)
+        hero_image_link = hero_image_element.get_attribute('src')
+        hero_image_link = hero_image_link.split(' ')[0]
+        hero_imge_values = {'hero_image': hero_image_link}
+        return hero_imge_values
+
     def _get_description(self, description_element):
         title = description_element.find_element(By.CSS_SELECTOR, 'h1').text
         description_selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(1)'
@@ -255,24 +281,47 @@ class HelloFreshScraper:
 
     def _get_times(self, description_element):
         selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(2)'
+        # div[data-test-id="recipe-description"] div:nth-child(2) > div:nth-child(2) > div
+        # -> gives individual obj for .text
         times_div = description_element.find_element(By.CSS_SELECTOR, selector)
         times_lines = times_div.text.replace(' Minuten', '').split('\n')
-        times_values = {'total_time': times_lines[1]}
+
+        total_time = times_lines[0] if len(times_lines) == 1 else times_lines[1]
+        times_values = {'total_time': total_time}
         try:
             times_values['preparation_time'] = times_lines[3]
             times_values['cooking_time'] = times_lines[5]
-        except Exception:
+        except:
             pass
         return times_values
 
     def _get_ingredients(self, ingredients_element):
+        ingredients_data = {'ingredients': []}
+        button_selector = 'div[aria-label="Segmented Button"] > button[title="2"]'
+        try:
+            ingredients_element.find_element(By.CSS_SELECTOR, button_selector).click()
+            sleep(0.3)
+        except NoSuchElementException:
+            self.log.warning(f"Meals: 2 button not found")
         selector = 'div[data-test-id="ingredient-item-shipped"]'
         ingredient_items = ingredients_element.find_elements(By.CSS_SELECTOR, selector)
-        ingredients_data = {'ingredients': []}
         for ingredient_item in ingredient_items:
             ingredient_item_lines = ingredient_item.text.split('\n')
-            quantity, unit = ingredient_item_lines[0].split(' ')
-            ingredients_data['ingredients'].append({'quantity': quantity, 'unit': unit, 'name': ingredient_item_lines[1]})
+            amount_line, name_line = ingredient_item_lines[0], ingredient_item_lines[1]
+            amount_tokens = amount_line.split(' ')
+            if len(amount_tokens) == 1:
+                if amount_tokens[0].isdigit():
+                    quantity = amount_tokens[0]
+                    unit = ''
+                else:
+                    unit = amount_tokens[0]
+                    quantity = 1 if unit == 'Stück' else 0
+            elif len(amount_tokens) >= 2:
+                quantity, unit = amount_tokens[0], amount_tokens[1]
+            else:
+                quantity, unit = 0, ''
+
+            ingredients_data['ingredients'].append({'quantity': quantity, 'unit': unit, 'name': name_line})
         return ingredients_data
 
     def _get_nutrients(self, nutrients_element):

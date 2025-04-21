@@ -155,6 +155,7 @@ class MessageHandler:
             dataframe_idx: int,
             recipe_pdf_path: str,
             shopping_list_message_id: int,
+            recipe_thumb_path: str | None = None,
     ) -> int:
         """
         Send a single recipe PDF to the user.
@@ -169,14 +170,27 @@ class MessageHandler:
             replace_idx=dataframe_idx,
             shopping_list_message_id=shopping_list_message_id
         )
+        thumb_file = None
         try:
-            with open(recipe_pdf_path, 'rb') as recipe_file:
-                message = self.bot.send_document(chat_id=chat_id, document=recipe_file, reply_markup=keyboard)
+            if recipe_thumb_path:
+                thumb_file = open(recipe_thumb_path, 'rb')
+            with open(recipe_pdf_path, 'rb') as recipe_pdf_file:
+                file_name = recipe_pdf_path.split('/')[-1].replace('.pdf', '')
+                document = types.InputFile(recipe_pdf_file, file_name=recipe_pdf_path)
+                message = self.bot.send_document(
+                    chat_id=chat_id,
+                    document=recipe_pdf_file,
+                    reply_markup=keyboard,
+                    thumb=thumb_file if thumb_file else None,
+                )
                 return message.message_id
         except FileNotFoundError:
             self.log.error(f"PDF not found: {recipe_pdf_path}")
             message = self.bot.send_message(chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard)
             return message.message_id
+        finally:
+            if thumb_file:
+                thumb_file.close()
 
     @staticmethod
     def _create_pdf_inline_keyboard(replace_idx, shopping_list_message_id, button_text='🔄 Austauschen'):

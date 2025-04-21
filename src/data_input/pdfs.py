@@ -2,109 +2,84 @@ import io
 import requests
 import pandas as pd
 import os
-import json
 import re
 import ast
-from time import sleep
 import fitz  # PyMuPDF
 from PIL import Image
 from utils.logger import create_logger
+from utils.config import ROOT_DIR
+# import types for fitz
 
-from meals import HfMealManager
-
-EXAMPLE_PATH = '/data/pdfs_v2/Alpine_Käsespätzlepfanne_mit_Birne_und_Bacon.pdf'
-
-
-class PDF_Manager:
-    log = create_logger("PDF Manager")
-    csv_data_path = 'data/cleaned_data_v2.csv'
-    pdfs_path = 'data/pdfs_v2'
-
-    def _check_pdf_page_count(self, pdf_path, expected_pages=2):
-        pdf_document = fitz.open(pdf_path)
-        page_count = pdf_document.page_count
-        print(f"Page Count: {page_count}")
-        pdf_document.close()
-        return page_count == expected_pages
-
-    def remove_faulty_pdfs(self):
-        df = pd.read_csv(self.csv_data_path)
-        counter = 0
-        for idx, row in df.iterrows():
-            pdf_title = row['title'].replace(' ', '_').replace(':', '').replace('!', '').replace('&', 'und')
-            pdf_path = f"{self.pdfs_path}/{pdf_title}.pdf"
-            if not os.path.exists(pdf_path):
-                print(f"PDF not found: {pdf_path}")
-                counter += 1
-                df.drop(idx, inplace=True)
-            if not self._check_pdf_page_count(pdf_path):
-                print(f"PDF has wrong page count: {pdf_path}")
-                os.remove(pdf_path)
-                counter += 1
-                df.drop(idx, inplace=True)
-        df.to_csv(self.csv_data_path, index=False)
-        print(f"Removed {counter} PDFs")
-
-    def download_single_pdf(self, url, save_path):
-        response = requests.get(url)
-        assert response.status_code == 200, f"Error in downloading pdf: {response.status_code}"
-        assert response.headers['Content-Type'] == 'application/pdf', f"Error in downloading pdf: {response.headers['Content-Type']}"
-        assert len(response.content) > 1000, f"Error in downloading pdf: File is empty"
-        with open(save_path, 'wb') as f:
-            f.write(response.content)
-
-    def get_pdf_title(self, title):
-        return HfMealManager().get_pdf_title_from_meal_name(title)
-
-    def download_all_pdfs(self):
-        df = pd.read_csv(self.csv_data_path)
-        os.makedirs(self.pdfs_path, exist_ok=True)
-        counter = 0
-        for idx, row in df.iterrows():
-            counter_str = f"[{idx+1}/{len(df)}]"
-            pdf_title = self.get_pdf_title(row['title'])
-            try:
-                self.download_single_pdf(row['pdf_link'], f"{self.pdfs_path}/{pdf_title}.pdf")
-                self.log.debug(f"{counter_str} Downloaded {row['pdf_link']}")
-                counter += 1
-            except Exception as e:
-                self.log.warning(f"{counter_str} Error in downloading pdf: {e}")
-        self.log.info(f"Downloaded {counter} PDFs")
+from src.meals import HfMealManager
+from src.data_input.pdf_downloader import PdfManager
 
 
-class PDF_Creator:
+class PdfCreator:
     log = create_logger("PDF Creator")
-    old_save_dir = "data/pdfs_v2"
-    save_dir = "data/pdfs_v2_mobile"
+    height = 9999
+
     text_l_padding = 175
-    l_padding = 5
-    r_padding = 5
-    t_padding = 30
+    left_padding = 5
+    right_padding = 5
+    top_padding = 30
     img_txt_spacing = 10
     width = 600
-    height = 9999
     step_height = 150
-    fontsize = 26
-    paragraph_spacing = fontsize * 1.0
-    instruction_step_spacing = 35
-    line_height = 1.20
+    instruction_step_spacing = 38
+
     fontname = "helv"
-    instruction_img_crop = (0.26, 0.26, 0.17, 0.18)
+    text_formatting = {
+        'fontsize': 26,
+        'lineheight': 1.20,
+        'align': fitz.TEXT_ALIGN_LEFT,
+    }
+    fontname_text = "helv"
+    fontname_ingredients = "spacemo"
 
-    def __init__(self):
+    instruction_img_crop_percentages = (0.26, 0.26, 0.17, 0.18)
+    paragraph_spacing = text_formatting['fontsize'] * 1.0
+    image_quality = 25
+    instruction_divider_color = 0.6
+
+    def __init__(self, save_dir: str = f'{ROOT_DIR}/data/temp_pdfs'):
+        self.save_dir = save_dir
         os.makedirs(self.save_dir, exist_ok=True)
+        fitz.Font(self.fontname_ingredients)
+        self.meal_manager = HfMealManager()
 
-    @staticmethod
-    def crop_image_percentages(img, left, right, top, bottom):
-        """Crops an image with given percentages of the image size from each side"""
-        width, height = img.size
-        left = int(left * width)
-        top = int(top * height)
-        right = width - int(right * width)
-        bottom = height - int(bottom * height)
-        return img.crop((left, top, right, bottom))
+    def create_pdf_with_text(self, recipe_entry: pd.Series, num_meals: int):
+        pdf_title = PdfManager.get_pdf_title(recipe_entry['title'])
+        pdf = fitz.open()
+        # self.insert_page_hero_image(pdf, pdf_title)
+        self.insert_page_with_ingredients(pdf, recipe_entry, num_meals)
+        self.insert_page_with_instructions(pdf, recipe_entry, num_meals)
+        # save pdf
+        os.makedirs(f"{self.save_dir}/{num_meals}", exist_ok=True)
+        new_pdf_title = pdf_title.replace('_', ' ')
+        pdf.save(f"{self.save_dir}/{num_meals}/{new_pdf_title}.pdf")
+        pdf.close()
+        return
 
-    def get_center_crop_first_page_img(self, title, path='data/pdfs_v2'):
+    def insert_page_hero_image(self, pdf, pdf_title):
+        """
+        Inserts a hero image as the first page of the pdf.
+        """
+        pdf_title = pdf_title.replace(' ', '_')
+        first_page_img = self._get_center_crop_first_page_img(pdf_title)
+        first_page_img_buffer = io.BytesIO()
+        first_page_img.save(first_page_img_buffer, format="JPEG")
+        first_page_img_buffer.seek(0)
+        first_page = pdf.new_page(width=self.width, height=self.width)
+        first_page.insert_image(
+            fitz.Rect(0, 0, self.width, self.width),
+            stream=first_page_img_buffer,
+            keep_proportion=True,
+        )
+
+    def _get_center_crop_first_page_img(self, title, path='data/pdfs_v2'):
+        """
+        Get a hero image from the first page of the downloaded pdf
+        """
         pdf = fitz.open(f"{path}/{title}.pdf")
         page_1 = pdf.load_page(0)
         pix = page_1.get_pixmap()
@@ -112,25 +87,116 @@ class PDF_Creator:
         cropped_img = self.crop_image_percentages(img, 0.15, 0.35, 0.24, 0.053)
         return cropped_img
 
-    def _get_instruction_images(self, recipe_entry: pd.Series):
-        all_image_links = ast.literal_eval(recipe_entry["instruction_images"])
+    def insert_page_with_ingredients(
+            self, pdf: fitz.Document,
+            recipe_entry: pd.Series,
+            num_meals: int,
+            horizontal_padding: int = 50,
+            vertical_padding: int = 30,
+    ) -> None:
+
+        single_recipe_df = pd.DataFrame([recipe_entry])
+        ingredients_text = self.meal_manager.get_ingredients_shopping_list(
+            recipes_df=single_recipe_df, num_portions=num_meals, filter_home_ingredients=False, sorting='amount'
+        )
+
+        internal_height = 99999
+        page = pdf.new_page(width=self.width, height=internal_height)  # type: ignore[attr-defined]
+        textbox_rect = fitz.Rect(
+            x0=horizontal_padding, y0=vertical_padding, x1=self.width - horizontal_padding, y1=internal_height,
+        )
+
+        unused_page_height = page.insert_textbox(
+            rect=textbox_rect,
+            buffer=ingredients_text,
+            fontname="spacemo",
+            **self.text_formatting,
+        )
+        textbox_height = (internal_height - unused_page_height)
+        full_page_height = 2 * vertical_padding + textbox_height
+        self._crop_pdf_page_to_height(full_page_height, page)
+
+    def insert_page_with_instructions(self, pdf, recipe_entry, num_meals):
+        instruction_images = self._get_instruction_images(recipe_entry['instruction_images'])
+        all_instructions = self._get_instructions(recipe_entry, num_meals)
+        page = pdf.new_page(width=self.width, height=self.height)
+        current_height = self.top_padding
+
+        for idx, instructions_step in enumerate(all_instructions):
+            instruction_image = instruction_images[idx] if len(instruction_images) > idx else None
+            current_height = self._insert_single_instruction_step(
+                page=page,
+                instruction_image=instruction_image,
+                instructions_step=instructions_step,
+                current_height=current_height,
+            )
+
+        self._crop_pdf_page_to_height(full_page_height=current_height, page=page)
+
+    def _insert_single_instruction_step(
+            self,
+            page,
+            instruction_image: io.BytesIO | None,
+            instructions_step: list[str],
+            current_height: int,
+    ):
+        """
+        Inserts a single instruction step with an image and text into the pdf page.
+
+        Args:
+            page: The pdf page to insert the instruction step into.
+            instruction_image: The image to insert.
+            instructions_step: The list of instructions to insert.
+            current_height: The current editing position of the pdf page.
+        """
+        local_height = current_height
+        if instruction_image:
+            self.insert_image(
+                page=page, image=instruction_image, page_height=current_height, image_height=self.step_height
+            )
+        for _idx, single_instruction in enumerate(instructions_step):
+            used_height = self.insert_textbox(page, single_instruction, position=local_height)
+            local_height += used_height + self.paragraph_spacing
+
+        required_next_height = local_height + self.instruction_step_spacing
+        minimum_next_height = current_height + self.step_height + self.instruction_step_spacing
+        next_height = max(minimum_next_height, required_next_height)
+
+        self._insert_instruction_step_divider(next_height - self.instruction_step_spacing, page)
+
+        return next_height
+
+    def _insert_instruction_step_divider(self, height, page):
+        line_height = 0.5
+        line_rect = fitz.Rect(
+            x0=self.left_padding * 3,
+            y0=height + self.img_txt_spacing,
+            x1=self.width - self.right_padding * 3,
+            y1=height + line_height + self.img_txt_spacing,
+        )
+        page.draw_rect(line_rect, color=self.instruction_divider_color, width=line_height)
+
+    def _get_instruction_images(self, instruction_images: str) -> list[io.BytesIO]:
+        all_image_links = ast.literal_eval(instruction_images)
         all_images = []
         for idx, image_url in enumerate(all_image_links):
-            image = Image.open(io.BytesIO(requests.get(image_url).content))
-            image = self.crop_image_percentages(image, *self.instruction_img_crop)
+            if image_url is None or image_url == '':
+                self.log.warning(f"Image URL is empty or None for index {idx}: {image_url}")
+                all_images.append(None)
+                continue
             try:
+                image = Image.open(io.BytesIO(requests.get(image_url).content))
+                image = self.crop_image_percentages(image, *self.instruction_img_crop_percentages)
                 img_buffer = io.BytesIO()
-                image.save(img_buffer, format="JPEG", quality=100)
+                image.save(img_buffer, format="JPEG", quality=self.image_quality)
                 img_buffer.seek(0)
             except Exception as e:
                 self.log.error(f"Error in converting image: {e}")
-                img_buffer = io.BytesIO()
-                image.save(img_buffer, format="PNG")
-                img_buffer.seek(0)
+                img_buffer = None
             all_images.append(img_buffer)
         return all_images
 
-    def _get_instructions(self, recipe_entry: pd.Series, num_meals: int):
+    def _get_instructions(self, recipe_entry: pd.Series, num_meals: int) -> list[list[str]]:
         """ Replaces all placeholders in the instructions with the correct values (with and without unit) """
         all_instructions = ast.literal_eval(recipe_entry["instructions"])
         placeholder_patterns = [r'\[(\d+)\s*(\w+)\]', r'\[(\d+)\s*\w*\]']
@@ -159,13 +225,9 @@ class PDF_Creator:
 
         return new_instructions
 
-    def insert_image(self, page, image, position, height):
-        rect = fitz.Rect(
-            x0=self.l_padding,
-            y0=position,
-            x1=self.text_l_padding - self.img_txt_spacing,
-            y1=position + height
-        )
+    def insert_image(self, page, image: io.BytesIO, page_height: int, image_height: int):
+        right_padding = self.text_l_padding - self.img_txt_spacing
+        rect = fitz.Rect(x0=self.left_padding, y0=page_height, x1=right_padding, y1=page_height + image_height)
         page.insert_image(rect, stream=image, keep_proportion=True)
 
     def insert_textbox(self, page, text, position):
@@ -173,112 +235,66 @@ class PDF_Creator:
         rect = fitz.Rect(
             x0=self.text_l_padding,
             y0=position,
-            x1=self.width - self.r_padding,
+            x1=self.width - self.right_padding,
             y1=position + internal_height
         )
-        unused_height = page.insert_textbox(
-            rect,
-            text,
-            fontname=self.fontname,
-            fontsize=self.fontsize,
-            lineheight=self.line_height,
-            align=fitz.TEXT_ALIGN_LEFT
-        )
+        unused_height = page.insert_textbox(rect, text, fontname='helv', **self.text_formatting)
         if unused_height < 0:
             self.log.error("Failed to insert text box")
         used_height = internal_height - unused_height
         return used_height
 
+    @staticmethod
+    def _crop_pdf_page_to_height(full_page_height: int, page: fitz.Page) -> None:
+        fitted_page_rect = fitz.Rect(x0=page.rect.x0, y0=page.rect.y0, x1=page.rect.x1, y1=full_page_height)
+        page.set_cropbox(fitted_page_rect)
 
-    def insert_page_hero_image(self, pdf, pdf_title):
-        pdf_title = pdf_title.replace(' ', '_')
-        first_page_img = self.get_center_crop_first_page_img(pdf_title)
-        first_page_img_buffer = io.BytesIO()
-        first_page_img.save(first_page_img_buffer, format="JPEG")
-        first_page_img_buffer.seek(0)
-        first_page = pdf.new_page(width=self.width, height=self.width)
-        first_page.insert_image(
-            fitz.Rect(0, 0, self.width, self.width),
-            stream=first_page_img_buffer,
-            keep_proportion=True,
-        )
-
-    def insert_page_ingredients(self, pdf, recipe_entry, num_meals):
-        ingredients = HfMealManager().get_ingredients_shopping_list(
-            pd.DataFrame([recipe_entry]),
-            num_meals,
-            filter_home_ingredients=False,
-            sorting='amount'
-        )
-        internal_height = 9999
-        page = pdf.new_page(width=self.width, height=internal_height)
-        fitz.Font("spacemo")
-        unused_height = page.insert_textbox(
-            fitz.Rect(50, 30, self.width, internal_height),
-            ingredients,
-            fontname="spacemo",
-            fontsize=self.fontsize,
-            lineheight=self.line_height,
-            align=fitz.TEXT_ALIGN_LEFT
-        )
-        # crop
-        used_height = internal_height - unused_height + 50
-        rect = page.rect
-        cropped_rect = fitz.Rect(rect.x0, rect.y0, rect.x1, used_height)
-        page.set_cropbox(cropped_rect)
-
-    def insert_page_with_instructions(self, pdf, recipe_entry, num_meals):
-        all_images = self._get_instruction_images(recipe_entry)
-        all_instructions = self._get_instructions(recipe_entry, num_meals)
-        page = pdf.new_page(width=self.width, height=self.height)
-        x_position = local_position = self.t_padding
-        for idx, instructions_step in enumerate(all_instructions):
-            self.insert_image(page, all_images[idx], x_position, self.step_height)
-            for _idx, single_instruction in enumerate(instructions_step):
-                used_height = self.insert_textbox(page, single_instruction, position=local_position)
-                local_position += used_height + self.paragraph_spacing
-            next_x_position = local_position + self.instruction_step_spacing
-            minimum_x_position = x_position + self.step_height + self.instruction_step_spacing
-            x_position = max(minimum_x_position, next_x_position)
-            local_position = x_position
-        # crop bottom of pdf to remove empty space
-        leftover_height = self.height - x_position
-        # print(f"Total Height: {int(x_position)}")
-        rect = page.rect
-        cropped_rect = fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y1 - leftover_height)
-        page.set_cropbox(cropped_rect)
-
-    def create_pdf_with_text(self, recipe_entry: pd.Series, num_meals: int):
-        pdf_title = PDF_Manager().get_pdf_title(recipe_entry['title'])
-        pdf = fitz.open()
-        self.insert_page_hero_image(pdf, pdf_title)
-        self.insert_page_ingredients(pdf, recipe_entry, num_meals)
-        self.insert_page_with_instructions(pdf, recipe_entry, num_meals)
-        # save pdf
-        os.makedirs(f"{self.save_dir}/{num_meals}", exist_ok=True)
-        new_pdf_title = pdf_title.replace('_', ' ')
-        pdf.save(f"{self.save_dir}/{num_meals}/{new_pdf_title}.pdf")
-        pdf.close()
-        return
+    @staticmethod
+    def crop_image_percentages(img: Image, left: float, right: float, top: float, bottom: float) -> Image:
+        """Crops an image with given percentages of the image size from each side"""
+        width, height = img.size
+        left = int(left * width)
+        top = int(top * height)
+        right = width - int(right * width)
+        bottom = height - int(bottom * height)
+        return img.crop((left, top, right, bottom))
 
 
-def create_pdfs(meals: int):
-    for i in range(len(recipes_df)):
-        recipe_entry = recipes_df.iloc[i]
+def create_pdfs(recipes: pd.DataFrame, num_meals: int):
+    pdf_creator = PdfCreator()
+    for i in range(len(recipes)):
+        recipe_entry = recipes.iloc[i]
         print(f"[{i}] Creating PDF for: {recipe_entry['title']}")
-        pdf_creator.create_pdf_with_text(recipe_entry, num_meals=meals)
         try:
-            pass
+            pdf_creator.create_pdf_with_text(recipe_entry, num_meals=num_meals)
         except Exception as e:
             print(f"Error in creating PDF: {e}")
 
 
-if __name__ == '__main__':
+def create_pdfs_threaded(recipes: pd.DataFrame, num_meals: list[int], num_threads_per_mealsize: int = 2):
     from threading import Thread
-    pdf_manager = PDF_Manager()
-    pdf_creator = PDF_Creator()
-    recipes_df = pd.read_csv(pdf_manager.csv_data_path)
-    for meals in [4, 3, 2, 1, 5, 6]:
-        thread = Thread(target=create_pdfs, args=(meals,))
-        thread.start()
+    import numpy as np
+
+    threads = []
+    for num_meal in num_meals:
+        meal_recipes_split = np.array_split(recipes, num_threads_per_mealsize)
+        for idx, meal_recipes in enumerate(meal_recipes_split, start=1):
+            thread = Thread(target=create_pdfs, kwargs={'recipes': meal_recipes, 'num_meals': num_meal})
+            thread.start()
+            threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+    print("All threads completed.")
+
+
+if __name__ == '__main__':
+    recipes_path = f'{ROOT_DIR}/data/temp_data/cleaned.csv'
+    recipes = pd.read_csv(recipes_path)
+    create_pdfs_threaded(
+        recipes=recipes,
+        num_meals=[1, 2, 3, 4, 5, 6],
+        num_threads_per_mealsize=2,
+    )
+
 
