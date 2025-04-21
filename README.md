@@ -58,25 +58,25 @@ cd docs
 
 
 # Deploy to cloud
-- Replace the `notion-api-sync` and `deployment` with your project and repository name, and `telegram-meal-bot` with the name you want
+- Replace the `ostoll` and `deployment` with your project and repository name, and `telegram-meal-bot` with the name you want
 - check the dockerfile says `COPY . .` and not `COPY pythonproject .`
 - check you installed all dependencies using `poetry add` and not `pip install`
 ```bash
 # build docker image
-docker build -t us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot .
+docker build -t us-west1-docker.pkg.dev/ostoll/telegram/meals .
 ```
 
 ```bash
 # test locally
-docker run -p 8080:8080 us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
+docker run -p 8080:8080 us-west1-docker.pkg.dev/ostoll/telegram/meals
 ```
 
 ```bash
 # push to artifact registry
-docker push us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot
+docker push us-west1-docker.pkg.dev/ostoll/telegram/meals
 ```
 
 ### Now you can deploy using gcloud sdk:
 ```bash
-gcloud run deploy telegram-meal-bot  --allow-unauthenticated --image=us-west1-docker.pkg.dev/notion-api-sync/deployment/telegram-meal-bot:latest --region=us-west1 --project=notion-api-sync
+gcloud run deploy telegram-meal-bot  --allow-unauthenticated --image=us-west1-docker.pkg.dev/ostoll/telegram/meals:latest --region=us-west1 --project=ostoll
 ```

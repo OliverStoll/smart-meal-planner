@@ -1,13 +1,15 @@
 import pandas as pd
 from telebot import types
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
-from utils.logger import create_logger
+from common_utils.logger import create_logger
 
 from src.settings import UserSettings
+from src.favorites import FavoritesHandler
 
 
 class MessageHandler:
     log = create_logger("Message Handler")
+    thumbnail_dir = 'data/temp_thumbs'
     title_emoji = {
         'alle': '🍲',
         'vegetarisch': '🥦',
@@ -16,9 +18,9 @@ class MessageHandler:
     }
     meal_types = {
         'alle': '',
-        'vegetarisch': 'vegetarische',
-        'vegan': 'vegane',
-        'protein': 'proteinreiche',
+        'vegetarisch': 'vegetarische ',
+        'vegan': 'vegane ',
+        'protein': 'proteinreiche ',
     }
 
     def __init__(self, options_handler, meal_manager, bot):
@@ -27,6 +29,7 @@ class MessageHandler:
         self.bot = bot
         # persistent data
         self.last_sent_recipes_df = {}
+        self.favorite_handler = FavoritesHandler()
 
     def send_meals_message(
             self,
@@ -62,7 +65,6 @@ class MessageHandler:
             recipes_df=recipes_to_send,
             num_portions=user_settings.portions
         )
-
         shopping_list_message = self.send_shopping_list_message(
             chat_id=chat_id,
             previous_message_id=previous_shopping_list_message_id,
@@ -75,19 +77,25 @@ class MessageHandler:
             recipes=recipes_to_send,
             num_portions=user_settings.portions
         )
+        recipe_ids = recipes_to_send['id'].tolist()
+
+        user_favorites = self.favorite_handler.get_favorites(chat_id)
+        user_favorites_ids = list(user_favorites.keys())
 
         if recipe_idx_to_replace is not None:
             self.send_single_recipe_pdf(
                 chat_id=chat_id,
-                dataframe_idx=recipe_idx_to_replace,
                 recipe_pdf_path=recipes_pdf_paths[recipe_idx_to_replace],
                 shopping_list_message_id=shopping_list_message.message_id,
+                recipe_id=recipe_ids[recipe_idx_to_replace],
+                favorites=user_favorites_ids,
             )
         else:
             self.send_recipe_pdfs(
                 chat_id=chat_id,
+                shopping_list_message_id=shopping_list_message.message_id,
                 recipes_pdf_paths=recipes_pdf_paths,
-                shopping_list_message_id=shopping_list_message.message_id
+                recipe_ids=recipe_ids,
             )
 
     def send_shopping_list_message(
@@ -97,7 +105,7 @@ class MessageHandler:
             shopping_list_ingredients: str,
             user_settings: UserSettings,
             previous_message_id: int | None,
-    ):
+    ) -> types.Message:
         """
         Sends a message with the combined shopping list for the selected recipes.
 
@@ -124,6 +132,7 @@ class MessageHandler:
             self,
             chat_id: int,
             recipes_pdf_paths: list[str],
+            recipe_ids: list[int],
             shopping_list_message_id: int | None = None,
     ) -> list[int]:
         """
@@ -132,18 +141,23 @@ class MessageHandler:
         Args:
             chat_id: The chat ID of the user.
             recipes_pdf_paths: The paths to the recipe PDFs.
+            recipe_ids: The IDs of the recipes.
             shopping_list_message_id: The message id of the shopping list.
 
         Returns:
             pdf_message_ids: A list of message IDs for the sent PDFs.
         """
+
+        user_favorites = self.favorite_handler.get_favorites(chat_id)
+
         pdf_message_ids = []
         for idx, recipe_pdf_path in enumerate(recipes_pdf_paths):
             pdf_message_id = self.send_single_recipe_pdf(
                 chat_id=chat_id,
-                dataframe_idx=idx,
                 recipe_pdf_path=recipe_pdf_path,
                 shopping_list_message_id=shopping_list_message_id,
+                recipe_id=recipe_ids[idx],
+                favorites=list(user_favorites.keys()),
             )
             pdf_message_ids.append(pdf_message_id)
 
@@ -152,31 +166,38 @@ class MessageHandler:
     def send_single_recipe_pdf(
             self,
             chat_id: int,
-            dataframe_idx: int,
             recipe_pdf_path: str,
             shopping_list_message_id: int,
-            recipe_thumb_path: str | None = None,
+            recipe_id: int,
+            favorites: list[str],
     ) -> int:
         """
         Send a single recipe PDF to the user.
 
         Args:
             chat_id: The chat ID of the user.
-            dataframe_idx: The index of the recipe.
             recipe_pdf_path: The path to the recipe PDF.
             shopping_list_message_id: The message id of the shopping list.
+            recipe_id: The ID of the recipe.
+
+        Returns:
+            message_id: The message ID of the sent PDF.
         """
         keyboard = self._create_pdf_inline_keyboard(
-            replace_idx=dataframe_idx,
-            shopping_list_message_id=shopping_list_message_id
+            shopping_list_message_id=shopping_list_message_id,
+            recipe_id=recipe_id,
+            favorites=favorites,
         )
         thumb_file = None
         try:
-            if recipe_thumb_path:
-                thumb_file = open(recipe_thumb_path, 'rb')
+            thumbnail_filename = recipe_pdf_path.split('/')[-1].replace('.pdf', '.jpg')
+            thumbnail_path = f'{self.thumbnail_dir}/{thumbnail_filename}'
+            try:
+                thumb_file = open(thumbnail_path, 'rb')
+            except FileNotFoundError:
+                self.log.debug(f"Thumbnail not found: {thumbnail_path}")
+                thumb_file = None
             with open(recipe_pdf_path, 'rb') as recipe_pdf_file:
-                file_name = recipe_pdf_path.split('/')[-1].replace('.pdf', '')
-                document = types.InputFile(recipe_pdf_file, file_name=recipe_pdf_path)
                 message = self.bot.send_document(
                     chat_id=chat_id,
                     document=recipe_pdf_file,
@@ -192,15 +213,26 @@ class MessageHandler:
             if thumb_file:
                 thumb_file.close()
 
-    @staticmethod
-    def _create_pdf_inline_keyboard(replace_idx, shopping_list_message_id, button_text='🔄 Austauschen'):
+    def _create_pdf_inline_keyboard(
+            self,
+            shopping_list_message_id: int,
+            recipe_id: int,
+            favorites: list[str],
+    ) -> InlineKeyboardMarkup:
         keyboard = InlineKeyboardMarkup()
-        # TODO: change to use message id of pdf message itself,
-        callback_data = f'replace_{replace_idx}_{shopping_list_message_id}'
-        keyboard.row(InlineButton(text=button_text, callback_data=callback_data))
+        replace_button = InlineButton(
+            text='🔄 Austauschen',
+            callback_data=f'replace|{shopping_list_message_id}|{recipe_id}'
+        )
+
+        is_favorited = recipe_id in favorites
+        favorite_button = InlineButton(
+            text='⭐️ Speichern' if not is_favorited else '❌ Unfavorisieren',
+            callback_data=f'favorite|{recipe_id}' if not is_favorited else f'unfavorite|{recipe_id}',
+        )
+        keyboard.row(replace_button, favorite_button)
+
         return keyboard
-
-
 
     def _get_title_response(self, num_meals: int, meal_type: str, portions: int) -> str:
         """
@@ -223,15 +255,20 @@ class MessageHandler:
             ingredient_msg = self.bot.send_message(**message_args)
         return ingredient_msg
 
-    def resend_messages_to_replace_meal(self, message, meal_idx_to_replace, related_shopping_list_message_id):
+    def resend_messages_to_replace_meal(
+            self,
+            message: types.Message,
+            related_shopping_list_message_id: int,
+            recipe_id: str,
+    ):
         # TODO: we need to store each recipe global index in the callback to replace it. This way
         # we can delete the single message, update the shopping list and only sent the new recipe
         chat_id = message.chat.id
         last_sent_recipes = self.last_sent_recipes_df[str(chat_id)]
-        updated_recipes = self.replace_single_recipe_in_data(
+        updated_recipes, replaced_idx = self.replace_single_recipe_in_data(
             last_sent_recipes=last_sent_recipes,
-            meal_idx_to_replace=meal_idx_to_replace,
-            chat_id=chat_id
+            chat_id=chat_id,
+            recipe_id=recipe_id,
         )
 
         self.bot.delete_message(chat_id=chat_id, message_id=message.message_id)
@@ -241,16 +278,23 @@ class MessageHandler:
             num_meals=len(updated_recipes),
             previous_shopping_list_message_id=related_shopping_list_message_id,
             recipes_to_send=updated_recipes,
-            recipe_idx_to_replace=meal_idx_to_replace
+            recipe_idx_to_replace=replaced_idx,
         )
 
-    def replace_single_recipe_in_data(self, last_sent_recipes: pd.DataFrame, meal_idx_to_replace: int, chat_id: int):
+    def replace_single_recipe_in_data(
+            self,
+            last_sent_recipes: pd.DataFrame,
+            chat_id: int,
+            recipe_id: str,
+    ) -> tuple[pd.DataFrame, int]:
         user_settings = self.settings_handler.get_user_settings(chat_id)
         new_recipe = self.meal_manager.get_recipes_filtered_by_user_settings(
             num_recipes=1,
             user_settings=user_settings
         )
-        last_sent_recipes.loc[meal_idx_to_replace] = new_recipe.iloc[0]
-        return last_sent_recipes
+        # find the recipe idx to replace
+        idx_to_replace = last_sent_recipes.index[last_sent_recipes['id'] == recipe_id].tolist()[0]
+        last_sent_recipes.loc[idx_to_replace] = new_recipe.iloc[0]
+        return last_sent_recipes, idx_to_replace
 
 

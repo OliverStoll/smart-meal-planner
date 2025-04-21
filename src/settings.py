@@ -26,6 +26,7 @@ class UserSettings:
 
 
 class SettingsHandler:
+    callback_delim = '|'
     user_settings_path = 'data/options.json'
     settings: dict[str, SettingsType] = {
         'portions': SettingsType(
@@ -75,6 +76,7 @@ class SettingsHandler:
         self.bot = bot
         self.meal_manager = meal_manager
 
+
     def handle_settings_callback(self, setting_name: str, message: types.Message):
         setting_data = self.settings[setting_name]
 
@@ -83,7 +85,7 @@ class SettingsHandler:
         for setting_option in setting_data.options:
             button = InlineButton(
                 text=str(setting_option).capitalize(),
-                callback_data=f'option_{setting_name}_{setting_option}'
+                callback_data=f'option{self.callback_delim}{setting_name}{self.callback_delim}{setting_option}'
             )
             keyboard_buttons.append(button)
         keyboard.row(*keyboard_buttons)
@@ -103,7 +105,7 @@ class SettingsHandler:
             call_data (str): The data from the callback query.
             message (types.Message): The original message object used to edit the message and access user data.
         """
-        setting_name, setting_option = call_data.split('_')
+        setting_name, setting_option = call_data.split(self.callback_delim)
         chat_id = message.chat.id
         setting = self.settings[setting_name]
         setting_option = self._try_convert_str_to_int(setting_option)
@@ -164,7 +166,16 @@ class SettingsHandler:
         meal_type = options_file['meal_type'].get(str(chat_id), None)
         max_duration = options_file['max_duration'].get(str(chat_id), 999)
         cal_min = options_file['cal_min'].get(str(chat_id), 0)
-        recipes_df = self.meal_manager.get_recipes_filtered_by_user_settings(99999, meal_type, max_duration, cal_min)
+        user_settings = UserSettings(
+            portions=options_file['portions'].get(str(chat_id), 2),
+            meal_type=meal_type,
+            max_duration=max_duration,
+            cal_min=cal_min
+        )
+        recipes_df = self.meal_manager.get_recipes_filtered_by_user_settings(
+            num_recipes=999999,
+            user_settings=user_settings
+        )
         num_options = len(recipes_df)
         return num_options
 

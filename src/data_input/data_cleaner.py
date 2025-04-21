@@ -208,6 +208,12 @@ class DataCleaner:
 
     }
 
+    replace_title_strings = {
+        ':': '',
+        '!': '',
+        '&': 'und',
+    }
+
     def __init__(self):
         pass
 
@@ -220,6 +226,7 @@ class DataCleaner:
         recipes = self.clean_instructions_column(recipes)
         recipes = self.clean_ingredients_column(recipes)
         recipes = self.clean_calories_column(recipes)
+        recipes = self.clean_title_column(recipes)
         recipes['total_time'] = self.format_cooking_time(recipes['total_time'])
         recipes.rename(columns={'cooking_time': 'difficulty'}, inplace=True)
         return recipes
@@ -229,6 +236,13 @@ class DataCleaner:
         recipes = recipes.drop_duplicates(subset=['id'], keep='first')
         recipes = recipes.drop_duplicates(subset=['link'], keep='first')
         recipes = recipes.drop_duplicates(subset=['title'], keep='first')
+        return recipes
+
+    def clean_title_column(self, recipes: pd.DataFrame) -> pd.DataFrame:
+        """ Clean the title column by removing special characters and replacing certain strings """
+        for replace_str, replace_value in self.replace_title_strings.items():
+            recipes['title'] = recipes['title'].str.replace(replace_str, replace_value)
+        recipes['title'] = recipes['title'].str.strip()
         return recipes
 
     def remove_recipes_with_missing_data(self, recipes: pd.DataFrame) -> pd.DataFrame:
@@ -387,13 +401,13 @@ class DataCleaner:
             recipe_time_column: pd.Series,
     ) -> pd.Series:
         """ clean 'eine Stunde' in the time columns, by removing it and adding 60 minutes """
-        def convert_time_to_minutes(time_str: str) -> int:
+        def convert_time_to_minutes(time_str: str) -> float:
             if 'eine Stunde' in time_str:
                 time_str = time_str.replace('eine Stunde', '').strip()
-                remaining_time = int(time_str) if time_str else 0
+                remaining_time = float(time_str) if time_str else 0
                 return remaining_time + 60
             else:
-                return int(time_str)
+                return float(time_str)
 
         recipe_time_column = recipe_time_column.apply(lambda x: convert_time_to_minutes(x) if isinstance(x, str) else x)
         return recipe_time_column
@@ -433,4 +447,3 @@ if __name__ == "__main__":
     df = DataCleaner().clean_recipes_data(df)
     df.to_csv(output_path, index=False)
     list_all_ingredients(df, output_path=f'{ROOT_DIR}/data/temp_data/ingredients.csv')
-    print()

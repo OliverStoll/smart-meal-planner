@@ -3,7 +3,7 @@ import ast
 import os
 from typing import Literal
 
-from utils.logger import create_logger
+from common_utils.logger import create_logger
 from src.settings import UserSettings
 
 
@@ -166,11 +166,16 @@ class HfMealManager:
         ingredients_df['quantity'] = ingredients_df['quantity'] * quantity_factor
         # round all quantities if unit is not 'Stück'
         ingredients_df['quantity'] = ingredients_df.apply(
-            lambda x: round(x['quantity']) if x['quantity'] > 2 else x['quantity'],
-            axis=1
+            lambda x: round(x['quantity']) if x['quantity'] > 2 else x['quantity'], axis=1
         )
-        ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')
+        ingredients_df['quantity'] = ingredients_df.apply(
+            lambda x: round(x['quantity'], -1) if x['quantity'] > 20 else x['quantity'], axis=1
+        )
+        ingredients_df['quantity'] = ingredients_df.apply(
+            lambda x: round(x['quantity'], -2) if x['quantity'] > 300 else x['quantity'], axis=1
+        )
         ingredients_df['quantity'] = ingredients_df['quantity'].apply(lambda x: int(x) if x == int(x) else x)
+        ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')
         ingredients_list_str = self._generate_ingredients_shopping_list_text(ingredients_df)
         return ingredients_list_str
 
@@ -189,12 +194,12 @@ class HfMealManager:
         Returns:
             Sorted DataFrame of ingredients.
         """
+        ingredients_df['is_stueck'] = ingredients_df['unit'] == 'Stück'
         if sorting == 'category':
-            ingredients_df = ingredients_df.sort_values(['category', 'name'])
+            ingredients_df = ingredients_df.sort_values(['category', 'is_stueck', 'quantity'], ascending=[True, False, False])
         elif sorting == 'amount':
-            ingredients_df['is_stueck'] = ingredients_df['unit'] == 'Stück'
             ingredients_df = ingredients_df.sort_values(by=['is_stueck', 'quantity'], ascending=False)
-            ingredients_df.drop(columns='is_stueck', inplace=True)
+        ingredients_df.drop(columns='is_stueck', inplace=True)
 
         return ingredients_df
 

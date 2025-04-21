@@ -6,12 +6,13 @@ from dotenv import load_dotenv
 import time
 import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
-from utils.logger import create_logger
+from common_utils.logger import create_logger
 
 from meals import HfMealManager
 from subscriptions import SubscriptionHandler
 from settings import SettingsHandler
 from messaging import MessageHandler
+from favorites import FavoritesHandler
 
 
 class TelegramBot:
@@ -27,12 +28,12 @@ class TelegramBot:
     )
     settings_keyboard = InlineKeyboardMarkup()
     settings_keyboard.row(
-        InlineButton('🍽️ Portionsanzahl', callback_data='settings_portions'),
-        InlineButton('🥦 Ernährungsform', callback_data='settings_meal_type'),
+        InlineButton('🍽️ Portionsanzahl', callback_data='settings|portions'),
+        InlineButton('🥦 Ernährungsform', callback_data='settings|meal_type'),
     )
     settings_keyboard.row(
-        InlineButton('⏱️ Kochzeit', callback_data='settings_max_duration'),
-        InlineButton('🔥 Kalorien (min.)', callback_data='settings_cal_min')
+        InlineButton('⏱️ Kochzeit', callback_data='settings|max_duration'),
+        InlineButton('🔥 Kalorien (min.)', callback_data='settings|cal_min')
     )
 
     def __init__(self, secret_env_name='TELEGRAM_BOT_TOKEN'):
@@ -40,7 +41,9 @@ class TelegramBot:
         self.bot = telebot.TeleBot(getenv(secret_env_name))
         self.options_handler = SettingsHandler(self.bot, self.meal_manager)
         self.message_handler = MessageHandler(self.options_handler, self.meal_manager, self.bot)
+        self.callback_delimiter = self.options_handler.callback_delim
         self.subscriptions_handler = SubscriptionHandler(self.bot, self.message_handler)
+        self.favorites_handler = FavoritesHandler()
         self.setup_message_handlers()
         self.setup_message_callbacks()
 
@@ -106,56 +109,91 @@ class TelegramBot:
         def _log_incoming_message(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
 
-        def _get_enumerated_buttons(prefix, start_idx, end_idx):
-            return [InlineButton(f"{i}", callback_data=f'{prefix}_{i}') for i in range(start_idx, end_idx + 1)]
+        def _get_enumerated_buttons(prefix, start_idx, end_idx, delim='|'):
+            return [
+                InlineButton(f"{i}", callback_data=f'{prefix}{delim}{i}')
+                for i in range(start_idx, end_idx + 1)
+            ]
 
     def setup_message_callbacks(self):
         """ Add all callback query handlers to the bot. """
 
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('settings_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('settings|'))
         def handle_settings(call):
             _log_incoming_callback(call)
-            setting_name = call.data.replace('settings_', '')
+            setting_name = call.data.replace('settings|', '')
             self.options_handler.handle_settings_callback(setting_name, call.message)
 
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('option_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('option|'))
         def handle_option(call):
             _log_incoming_callback(call)
-            call_data = call.data.replace('option_', '')
+            call_data = call.data.replace('option|', '')
             self.options_handler.handle_user_setting_callback(call_data, call.message)
 
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('woechentlich_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('woechentlich|'))
         def handle_woechentlich(call):
             _log_incoming_callback(call)
             self.subscriptions_handler.handle_subscription_callback(call)
 
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('replace_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('replace|'))
         def handle_replace(call):
             _log_incoming_callback(call)
             try:
-                _, idx_str, msg_id_str = call.data.split('_')
-                idx = int(idx_str)
+                _, msg_id_str, recipe_id = call.data.split(self.callback_delimiter)
                 shopping_list_msg_id = int(msg_id_str)
                 self.message_handler.resend_messages_to_replace_meal(
                     message=call.message,
-                    meal_idx_to_replace=idx,
-                    related_shopping_list_message_id=shopping_list_msg_id
+                    related_shopping_list_message_id=shopping_list_msg_id,
+                    recipe_id=recipe_id
                 )
-            except (ValueError, IndexError):
-                self.log.warning(f"Invalid 'replace_' format: {call.data}")
+            except (ValueError, IndexError) as e:
+                self.log.warning(f"Invalid 'replace' format: {call.data}")
 
-        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('gerichte_'))
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('favorite|'))
+        def handle_favorite(call):
+            _log_incoming_callback(call)
+            try:
+                _, recipe_id = call.data.split(self.callback_delimiter)
+                self.favorites_handler.favorize_recipe(
+                    chat_id=call.message.chat.id,
+                    recipe_id=recipe_id
+                )
+                self.bot.answer_callback_query(callback_query_id=call.id, text="Added to favorites ⭐️")
+            except (ValueError, IndexError) as e:
+                self.log.warning(f"Invalid 'favorite' format: {call.data}")
+
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('unfavorite'))
+        def handle_unfavorite(call):
+            _log_incoming_callback(call)
+            try:
+                _, recipe_id = call.data.split(self.callback_delimiter)
+                self.favorites_handler.unfavorize_recipe(
+                    chat_id=call.message.chat.id,
+                    recipe_id=recipe_id
+                )
+                self.bot.answer_callback_query(callback_query_id=call.id, text="Removed from favorites ❌")
+            except (ValueError, IndexError) as e:
+                self.log.warning(f"Invalid 'unfavorite' format: {call.data}")
+
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('gerichte'))
         def handle_gerichte(call):
             _log_incoming_callback(call)
             try:
-                num_meals = int(call.data.replace('gerichte_', ''))
+                call_data = call.data.replace(f'gerichte{self.callback_delimiter}', '')
+                num_meals = int(call_data)
                 self.message_handler.send_meals_message(
                     chat_id=call.message.chat.id,
                     previous_shopping_list_message_id=call.message.message_id,
                     num_meals=num_meals
                 )
             except ValueError:
-                self.log.warning(f"Invalid 'gerichte_' value: {call.data}")
+                self.log.warning(f"Invalid 'gerichte' value: {call.data}")
+
+        @self.bot.callback_query_handler(func=lambda call: True)
+        def handle_all_other_callbacks(call):
+            """ Handle all other callbacks that don't match any specific handler. """
+            _log_incoming_callback(call)
+            self.log.warning(f"Unhandled callback query: {call.data}")
 
         def _log_incoming_callback(call):
             self.log.debug(f"[{call.message.chat.username}] Received callback query: {call.data}")

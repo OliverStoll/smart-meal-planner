@@ -97,7 +97,7 @@ class PdfCreator:
 
         single_recipe_df = pd.DataFrame([recipe_entry])
         ingredients_text = self.meal_manager.get_ingredients_shopping_list(
-            recipes_df=single_recipe_df, num_portions=num_meals, filter_home_ingredients=False, sorting='amount'
+            recipes_df=single_recipe_df, num_portions=num_meals, filter_home_ingredients=False, sorting='category'
         )
 
         internal_height = 99999
@@ -264,7 +264,7 @@ def create_pdfs(recipes: pd.DataFrame, num_meals: int):
     pdf_creator = PdfCreator()
     for i in range(len(recipes)):
         recipe_entry = recipes.iloc[i]
-        print(f"[{i}] Creating PDF for: {recipe_entry['title']}")
+        print(f"[{i}] Creating [meals:{num_meals}] PDF for: {recipe_entry['title']}")
         try:
             pdf_creator.create_pdf_with_text(recipe_entry, num_meals=num_meals)
         except Exception as e:
