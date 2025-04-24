@@ -38,7 +38,7 @@ class FavoritesHandler:
         ref = f"{self.favorites_ref}/{chat_id}/{recipe_id}/favorite"
         self.firebase_client.delete_entry(ref=ref)
 
-    def get_favorites(self, chat_id: int):
+    def get_favorites(self, chat_id: int) -> list[str]:
         """
         Retrieves the list of favorite recipes for a user from the Firebase database.
 
@@ -46,9 +46,10 @@ class FavoritesHandler:
             chat_id (int): The chat ID of the user.
 
         Returns:
-            dict: A dictionary containing the user's favorite recipes.
+            A list containing the user's favorite recipe ids.
         """
 
         ref = f"{self.favorites_ref}/{chat_id}"
         favorites = self.firebase_client.get_entry(ref=ref)
-        return favorites if favorites else {}
+        favorites_ids = list(favorites.keys()) if favorites else []
+        return favorites_ids

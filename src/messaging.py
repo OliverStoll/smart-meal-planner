@@ -79,8 +79,7 @@ class MessageHandler:
         )
         recipe_ids = recipes_to_send['id'].tolist()
 
-        user_favorites = self.favorite_handler.get_favorites(chat_id)
-        user_favorites_ids = list(user_favorites.keys())
+        user_favorites_ids = self.favorite_handler.get_favorites(chat_id)
 
         if recipe_idx_to_replace is not None:
             self.send_single_recipe_pdf(
@@ -96,6 +95,7 @@ class MessageHandler:
                 shopping_list_message_id=shopping_list_message.message_id,
                 recipes_pdf_paths=recipes_pdf_paths,
                 recipe_ids=recipe_ids,
+                user_favorites=user_favorites_ids,
             )
 
     def send_shopping_list_message(
@@ -134,6 +134,7 @@ class MessageHandler:
             recipes_pdf_paths: list[str],
             recipe_ids: list[int],
             shopping_list_message_id: int | None = None,
+            user_favorites: list[str] | None = None,
     ) -> list[int]:
         """
         Send all recipe PDFs to the user.
@@ -143,12 +144,11 @@ class MessageHandler:
             recipes_pdf_paths: The paths to the recipe PDFs.
             recipe_ids: The IDs of the recipes.
             shopping_list_message_id: The message id of the shopping list.
+            user_favorites: A list of favorite recipe IDs (optional).
 
         Returns:
             pdf_message_ids: A list of message IDs for the sent PDFs.
         """
-
-        user_favorites = self.favorite_handler.get_favorites(chat_id)
 
         pdf_message_ids = []
         for idx, recipe_pdf_path in enumerate(recipes_pdf_paths):
@@ -157,7 +157,7 @@ class MessageHandler:
                 recipe_pdf_path=recipe_pdf_path,
                 shopping_list_message_id=shopping_list_message_id,
                 recipe_id=recipe_ids[idx],
-                favorites=list(user_favorites.keys()),
+                favorites=user_favorites,
             )
             pdf_message_ids.append(pdf_message_id)
 

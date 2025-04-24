@@ -6,11 +6,11 @@ import re
 import ast
 import fitz  # PyMuPDF
 from PIL import Image
-from utils.logger import create_logger
-from utils.config import ROOT_DIR
+from common_utils.logger import create_logger
+from common_utils.config import ROOT_DIR
 # import types for fitz
 
-from src.meals import HfMealManager
+from src.meals import RecipeManager
 from src.data_input.pdf_downloader import PdfManager
 
 
@@ -45,7 +45,7 @@ class PdfCreator:
         self.save_dir = save_dir
         os.makedirs(self.save_dir, exist_ok=True)
         fitz.Font(self.fontname_ingredients)
-        self.meal_manager = HfMealManager()
+        self.meal_manager = RecipeManager()
 
     def create_pdf_with_text(self, recipe_entry: pd.Series, num_meals: int):
         pdf_title = PdfManager.get_pdf_title(recipe_entry['title'])

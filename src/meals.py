@@ -2,15 +2,16 @@ import pandas as pd
 import ast
 import os
 from typing import Literal
-
 from common_utils.logger import create_logger
+from common_utils.config import ROOT_DIR
+
 from src.settings import UserSettings
 
 
-class HfMealManager:
+class RecipeManager:
     """ Handles recipe data, generating shopping lists and PDF paths for recipes."""
 
-    log = create_logger('HF-Messager')
+    log = create_logger('Recipe Messager')
     orig_portions = 2
     home_ingredients = [
         'milder Chili-Mix', 'Gewürzmischung', 'zwiebel', 'schalotte', 'knoblauch',
@@ -269,6 +270,19 @@ class HfMealManager:
         pattern = '|'.join(ingredients_to_filter)
         ingredients_df = ingredients_df[~ingredients_df['name'].str.contains(pattern, case=False)]
         return ingredients_df
+
+    def get_recipe_titles(self, recipe_ids: list[str]) -> list[str]:
+        """
+        Retrieves recipe names based on the provided recipe IDs.
+
+        Args:
+            recipe_ids (list[str]): List of recipe IDs.
+
+        Returns:
+            list[str]: List of recipe names corresponding to the provided IDs.
+        """
+        recipes_df = self.recipe_df[self.recipe_df['id'].isin(recipe_ids)]
+        return recipes_df['title'].tolist()
 
 
 if __name__ == '__main__':

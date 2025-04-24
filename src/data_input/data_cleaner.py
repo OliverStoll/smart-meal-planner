@@ -3,8 +3,8 @@ import json
 import pandas as pd
 import re
 
-from utils.logger import create_logger
-from utils.config import ROOT_DIR
+from common_utils.logger import create_logger
+from common_utils.config import ROOT_DIR
 
 
 class DataCleaner:
@@ -433,12 +433,11 @@ def list_all_ingredients(df: pd.DataFrame, output_path: str | None = None) -> pd
         ingredients_entries.append({'name': name})
 
     ingredients_df = pd.DataFrame(ingredients_entries)
-    old_ingredients_df = pd.read_csv(f'{ROOT_DIR}/data/recipes/ingredients_v2.csv')
+    old_ingredients_df = pd.read_csv(f'{ROOT_DIR}/data/temp_data/ingredients_manual.csv')
     ingredients_df = pd.merge(ingredients_df, old_ingredients_df[['name', 'category']], on='name', how='left')
 
     if output_path:
         ingredients_df.to_csv(output_path, index=False)
-
 
 
 if __name__ == "__main__":
