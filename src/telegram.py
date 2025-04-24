@@ -49,7 +49,6 @@ class TelegramBot:
 
     def start_bot(self, raise_exceptions: bool = False) -> None:
         """ Start the bot in a loop, restarting it if it crashes. """
-        self._start_weekly_subscription_thread()
         while True:
             self._start_bot_once(raise_exceptions=raise_exceptions)
             time.sleep(self.restart_time)
@@ -68,11 +67,6 @@ class TelegramBot:
             self.log.error(f"Error (restarting bot in {self.restart_time}): {e}")
             if raise_exceptions:
                 raise e
-
-    def _start_weekly_subscription_thread(self):
-        """ Start a thread to handle weekly subscription messages. """
-        thread = threading.Thread(target=self.subscriptions_handler.schedule_weekly_subscription_messages)
-        thread.start()
 
     def setup_message_handlers(self):
         """ Add all message handlers to the bot. """

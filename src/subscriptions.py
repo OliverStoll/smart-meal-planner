@@ -1,29 +1,31 @@
 import json
 import schedule
 import time
+
 from common_utils.logger import create_logger
+from common_utils.apis.firebase import FirebaseClient
+from common_utils.config import secret
 
 
 class SubscriptionHandler:
     log = create_logger("Subscription Handler")
     subscriptions_path = 'data/subscriptions.json'
+    subscriptions_ref = 'AppData/Telegram%20Meal%20Bot/Subscriptions'
 
-    def __init__(self, bot, message_handler):
+    def __init__(self, bot, message_handler, firebase_secret_env='FIREBASE_REALTIME_DB_URL'):
         self.bot = bot
         self.message_handler = message_handler
-
-    def schedule_weekly_subscription_messages(self):
-        schedule.every().monday.at("12:00").do(self.send_subscription_messages)
-        while True:
-            schedule.run_pending()
-            time.sleep(60)
+        self.firebase_client = FirebaseClient(secret(firebase_secret_env))
 
     def send_subscription_messages(self):
         self.log.info("Sending weekly meal plans!")
-        with open(self.subscriptions_path, 'r') as file:
-            subscriptions = json.load(file)
-        for chat_id, num_meals in subscriptions.items():
-            self.message_handler.send_meals_message(chat_id, num_meals, self.bot)
+        subscriptions = self.firebase_client.get_entry(self.subscriptions_ref)
+        for chat_id, subscription_obj in subscriptions.items():
+            num_meals = subscription_obj.get('num_meals', 0)
+            self.message_handler.send_meals_message(
+                chat_id=chat_id,
+                num_meals=num_meals
+            )
 
     def handle_subscription_callback(self, call):
         num_meals = int(call.data.replace('woechentlich_', ''))
@@ -33,10 +35,11 @@ class SubscriptionHandler:
         self.set_user_subscription(call.message.chat.id, num_meals)
 
     def set_user_subscription(self, chat_id, num_meals):
-        with open(self.subscriptions_path, 'r') as file:
-            subscriptions = json.load(file)
-        subscriptions[str(chat_id)] = num_meals
-        if num_meals == 0:
-            del subscriptions[str(chat_id)]
-        with open(self.subscriptions_path, 'w') as file:
-            json.dump(subscriptions, file)
+        self.log.info(f"Setting subscription for {chat_id} to {num_meals} meals.")
+        ref = f'{self.subscriptions_ref}/{chat_id}'
+        self.firebase_client.set_entry(
+            ref=ref,
+            data={
+                'num_meals': num_meals
+            }
+        )
