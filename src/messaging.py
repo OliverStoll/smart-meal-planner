@@ -49,7 +49,8 @@ class MessageHandler:
             recipes_to_send: The recipes to send (optional).
             recipe_idx_to_replace: The index of the recipe to replace (optional).
         """
-        # todo: remove all sent recipes
+        if num_meals == 0:
+            return
 
         user_settings = self.settings_handler.get_user_settings(chat_id)
 

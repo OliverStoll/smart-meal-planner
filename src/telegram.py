@@ -9,7 +9,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineBu
 from common_utils.logger import create_logger
 
 from meals import RecipeManager
-from subscriptions import SubscriptionHandler
+from subscriptions.subscriptions import SubscriptionHandler
 from settings import SettingsHandler
 from messaging import MessageHandler
 from favorites import FavoritesHandler
@@ -49,6 +49,8 @@ class TelegramBot:
 
     def start_bot(self, raise_exceptions: bool = False) -> None:
         """ Start the bot in a loop, restarting it if it crashes. """
+        self.log.info("Starting Bot in a loop!")
+        self.subscriptions_handler.schedule_weekly_meal_plans()
         while True:
             self._start_bot_once(raise_exceptions=raise_exceptions)
             time.sleep(self.restart_time)
