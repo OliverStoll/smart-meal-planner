@@ -3,9 +3,9 @@ import os
 import fitz
 import pandas as pd
 import requests
-from utils.logger import create_logger
+from common_utils.logger import create_logger
 
-from src.meals import HfMealManager
+from src.meals import RecipeManager
 
 
 class PdfManager:
@@ -67,4 +67,4 @@ class PdfManager:
 
     @staticmethod
     def get_pdf_title(title: str) -> str:
-        return HfMealManager().get_pdf_title_from_meal_name(title)
+        return RecipeManager().get_pdf_title_from_meal_name(title)

@@ -9,7 +9,7 @@ from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.ie.webdriver import WebDriver
 
-from utils.config import create_logger, ROOT_DIR
+from common_utils.config import create_logger, ROOT_DIR
 
 
 class HelloFreshScraper:
@@ -18,7 +18,7 @@ class HelloFreshScraper:
     output_path = f'{ROOT_DIR}/data/temp_data'
     recipe_links_path = f'{output_path}/links.csv'
     thread_output_path = f'{output_path}/.temp'
-    num_threads = 8
+    num_threads = 12
 
     def __init__(self):
         self.driver = webdriver.Chrome()
@@ -26,6 +26,11 @@ class HelloFreshScraper:
             'description': {
                 'selector': 'div[data-test-id="recipe-description"]',
                 'getter_function': self._get_description,
+                'selectors': {
+                    'title': 'h1',
+                    'description': 'div:nth-child(2) > div:nth-child(1) > div:nth-child(1)',
+                    'tags': 'div:nth-child(2) > div:nth-child(1) > div:nth-child(2)',
+                }
             },
             'hero_image': {
                 'selector': 'div[data-test-id="recipe-hero-image"]',
@@ -95,6 +100,10 @@ class HelloFreshScraper:
                 all_recipes_details.append(recipes_df)
 
         recipes_df = pd.concat(all_recipes_details, ignore_index=True)
+
+        if save_results:
+            recipes_df.to_csv(f"{self.output_path}/recipes.csv", index=False)
+            self.log.info(f"Recipes saved to {self.output_path}/recipes.csv")
 
         return recipes_df
 
@@ -271,28 +280,50 @@ class HelloFreshScraper:
         hero_imge_values = {'hero_image': hero_image_link}
         return hero_imge_values
 
-    def _get_description(self, description_element):
-        title = description_element.find_element(By.CSS_SELECTOR, 'h1').text
-        description_selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(1)'
-        description_div = description_element.find_element(By.CSS_SELECTOR, description_selector)
-        description_tags = description_div.text.split('\n')[1].replace('Tags:', '').split('•')
-        description_values = {'title': title, 'description': description_div.text, 'tags': description_tags}
+    def _get_description(self, container):
+        title = container.find_element(By.CSS_SELECTOR, 'h1').text
+
+        description_selector = 'div:nth-child(2) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)'
+        description_text = container.find_element(By.CSS_SELECTOR, description_selector).text
+
+        tags_selector = 'div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > div:nth-child(2)'
+        tags_text = container.find_element(By.CSS_SELECTOR, tags_selector).text
+        tags_list = tags_text.replace('Tags:', '').split('•')
+
+        allergenes_selector = 'div:nth-child(2) > div:nth-child(1) > div:nth-child(2) > div:nth-child(1) > div:nth-child(3)'
+        allergenes_text = container.find_element(By.CSS_SELECTOR, allergenes_selector).text
+        allergenes_list = allergenes_text.replace('Allergene:', '').split('•')
+
+        description_values = {
+            'title': title, 'description': description_text, 'tags': tags_list, 'allergenes': allergenes_list
+        }
         return description_values
 
-    def _get_times(self, description_element):
-        selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(2)'
-        # div[data-test-id="recipe-description"] div:nth-child(2) > div:nth-child(2) > div
-        # -> gives individual obj for .text
-        times_div = description_element.find_element(By.CSS_SELECTOR, selector)
-        times_lines = times_div.text.replace(' Minuten', '').split('\n')
+    def _get_times(self, container):
+        total_time_selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(1)'
+        total_time_text = container.find_element(By.CSS_SELECTOR, total_time_selector).text
+        total_time = total_time_text.replace('Gesamtzeit\n', '').replace(' Minuten', '')
 
-        total_time = times_lines[0] if len(times_lines) == 1 else times_lines[1]
-        times_values = {'total_time': total_time}
         try:
-            times_values['preparation_time'] = times_lines[3]
-            times_values['cooking_time'] = times_lines[5]
-        except:
-            pass
+            work_time_selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(2)'
+            work_time_text = container.find_element(By.CSS_SELECTOR, work_time_selector).text
+            work_time = work_time_text.replace('Arbietszeit\n', '').replace(' Minuten', '')
+        except NoSuchElementException:
+            work_time = None
+
+        try:
+            difficulty_selector = 'div:nth-child(2) > div:nth-child(2) > div:nth-child(3)'
+            difficulty_text = container.find_element(By.CSS_SELECTOR, difficulty_selector).text
+            difficulty = difficulty_text.replace('Niveau\n', '')
+        except NoSuchElementException:
+            difficulty = None
+
+        times_values = {
+            'total_time': int(total_time) if total_time.isdigit() else None,
+            'work_time': int(work_time) if work_time.isdigit() else None,
+            'difficulty': difficulty
+        }
+
         return times_values
 
     def _get_ingredients(self, ingredients_element):

@@ -8,7 +8,7 @@ import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from common_utils.logger import create_logger
 
-from meals import HfMealManager
+from meals import RecipeManager
 from subscriptions import SubscriptionHandler
 from settings import SettingsHandler
 from messaging import MessageHandler
@@ -17,7 +17,7 @@ from favorites import FavoritesHandler
 
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
-    meal_manager = HfMealManager()
+    meal_manager = RecipeManager()
     restart_time = 60
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
@@ -105,6 +105,17 @@ class TelegramBot:
             buttons = _get_enumerated_buttons(prefix='woechentlich', start_idx=0, end_idx=6)
             keyboard.row(*buttons)
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
+
+        @self.bot.message_handler(commands=['favoriten'])
+        def send_favorites(message):
+            _log_incoming_message(message)
+            favorite_ids = self.favorites_handler.get_favorites(chat_id=message.chat.id)
+            favorite_recipes = self.meal_manager.get_recipe_titles(favorite_ids)
+            favorite_recipes = sorted(favorite_recipes)
+            response = "⭐️ Hier sind deine Favoriten:"
+            for recipe in favorite_recipes:
+                response += f"\n  - {recipe}"
+            self.bot.send_message(chat_id=message.chat.id, text=response)
 
         def _log_incoming_message(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")

@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from telebot import types
 
+from common_utils.apis.firebase import FirebaseClient
+from common_utils.config import secret
+
 
 
 @dataclass
@@ -19,15 +22,16 @@ class SettingsType:
 
 @dataclass
 class UserSettings:
-    portions: int
-    meal_type: str
-    max_duration: int
-    cal_min: int
+    portions: int = 2
+    meal_type: str = 'alle'
+    max_duration: int = 120
+    cal_min: int = 0
 
 
 class SettingsHandler:
     callback_delim = '|'
     user_settings_path = 'data/options.json'
+    user_settings_ref = 'AppData/Telegram Meal Bot/User Settings'
     settings: dict[str, SettingsType] = {
         'portions': SettingsType(
             name='portions',
@@ -75,7 +79,7 @@ class SettingsHandler:
     def __init__(self, bot, meal_manager):
         self.bot = bot
         self.meal_manager = meal_manager
-
+        self.firebase_client = FirebaseClient(realtime_db_url=secret('FIREBASE_REALTIME_DB_URL'))
 
     def handle_settings_callback(self, setting_name: str, message: types.Message):
         setting_data = self.settings[setting_name]
@@ -133,32 +137,25 @@ class SettingsHandler:
         return response
 
     def set_user_setting(self, chat_id: int, setting_name: str, setting_option: str | int):
-        """
-        Sets the user setting in the user settings JSON file.
-
-        Args:
-            chat_id: The chat ID of the user.
-            setting_name: The name of the setting to be updated.
-            setting_option: The new value for the setting.
-        """
-        with open(self.user_settings_path, 'r') as file:
-            options_data = json.load(file)
-        options_data[setting_name][str(chat_id)] = setting_option
-        with open(self.user_settings_path, 'w') as file:
-            json.dump(options_data, file)
+        """ Sets a specific user setting in the Firebase database. """
+        ref = f"{self.user_settings_ref}/{chat_id}/{setting_name}"
+        self.firebase_client.set_entry(
+            ref=ref,
+            data={'value': setting_option},
+        )
 
     def get_user_settings(self, chat_id: int) -> UserSettings:
-        chat_id = str(chat_id)
-        options_file = json.load(open(self.user_settings_path, 'r'))
-        # todo: refactor using settings default values
+        """ Loads the user settings from the Firebase database. """
+        ref = f"{self.user_settings_ref}/{chat_id}"
+        user_settings_raw = self.firebase_client.get_entry(ref=ref)
+        if not user_settings_raw:
+            return UserSettings()
         user_settings_data = {}
         for setting_name, setting_data in self.settings.items():
-            setting_value = options_file[setting_name].get(chat_id, setting_data.default_value)
+            setting_value = user_settings_raw.get(setting_name, {}).get('value', setting_data.default_value)
             setting_value = self._try_convert_str_to_int(setting_value)
             user_settings_data[setting_name] = setting_value
-            
         user_settings = UserSettings(**user_settings_data)
-
         return user_settings
 
     def get_num_of_options(self, chat_id):
