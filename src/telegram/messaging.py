@@ -3,8 +3,8 @@ from telebot import types
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from common_utils.logger import create_logger
 
-from src.settings import UserSettings
-from src.favorites import FavoritesHandler
+from src.telegram.callbacks.settings import UserSettings
+from src.telegram.callbacks.favorites import FavoritesHandler
 
 
 class MessageHandler:
@@ -55,7 +55,7 @@ class MessageHandler:
         user_settings = self.settings_handler.get_user_settings(chat_id)
 
         if recipes_to_send is None:
-            recipes_to_send = self.meal_manager.get_recipes_filtered_by_user_settings(
+            recipes_to_send = self.meal_manager.sample_recipes_filtered_by_user_settings(
                 num_recipes=num_meals,
                 user_settings=user_settings,
             )
@@ -289,7 +289,7 @@ class MessageHandler:
             recipe_id: str,
     ) -> tuple[pd.DataFrame, int]:
         user_settings = self.settings_handler.get_user_settings(chat_id)
-        new_recipe = self.meal_manager.get_recipes_filtered_by_user_settings(
+        new_recipe = self.meal_manager.sample_recipes_filtered_by_user_settings(
             num_recipes=1,
             user_settings=user_settings
         )

@@ -5,7 +5,7 @@ from typing import Literal
 from common_utils.logger import create_logger
 from common_utils.config import ROOT_DIR
 
-from src.settings import UserSettings
+from src.telegram.callbacks.settings import UserSettings
 
 
 class RecipeManager:
@@ -61,7 +61,7 @@ class RecipeManager:
         Returns:
             A tuple containing the shopping list text and a list of PDF paths.
         """
-        recipes = self.get_recipes_filtered_by_user_settings(
+        recipes = self.sample_recipes_filtered_by_user_settings(
             num_recipes=num_recipes,
             user_settings=user_settings
         )
@@ -75,7 +75,7 @@ class RecipeManager:
         )
         return ingredient_shopping_list, recipes_pdf_paths
 
-    def get_recipes_filtered_by_user_settings(self, num_recipes: int, user_settings: UserSettings) -> pd.DataFrame:
+    def sample_recipes_filtered_by_user_settings(self, num_recipes: int, user_settings: UserSettings) -> pd.DataFrame:
         """
         Filters the recipes based on user settings and returns a DataFrame of selected recipes.
 
@@ -86,15 +86,29 @@ class RecipeManager:
         Returns:
             A DataFrame containing the filtered recipes.
         """
-        recipes_df = self.recipe_df
-        recipes_df = self._filter_recipes_by_meal_type(recipes_df=recipes_df, meal_type=user_settings.meal_type)
-        recipes_df = recipes_df[recipes_df['total_time'] <= user_settings.max_duration]
-        recipes_df = recipes_df[recipes_df['calories'] >= user_settings.cal_min]
+        recipes_df = self.get_recipes_filtered_by_user_settings(user_settings=user_settings)
 
         if num_recipes < len(recipes_df):
             recipes_df = recipes_df.sample(num_recipes)
 
         recipes_df.reset_index(drop=True, inplace=True)
+
+        return recipes_df
+
+    def get_recipes_filtered_by_user_settings(self, user_settings: UserSettings) -> pd.DataFrame:
+        """
+        Filters the recipes based on user settings and returns the number of selected recipes.
+
+        Args:
+            user_settings: The user settings containing meal type, max duration, and min calories.
+
+        Returns:
+            An integer representing the number of filtered recipes.
+        """
+        recipes_df = self.recipe_df
+        recipes_df = self._filter_recipes_by_meal_type(recipes_df=recipes_df, meal_type=user_settings.meal_type)
+        recipes_df = recipes_df[recipes_df['total_time'] <= user_settings.max_duration]
+        recipes_df = recipes_df[recipes_df['calories'] >= user_settings.cal_min]
 
         return recipes_df
 

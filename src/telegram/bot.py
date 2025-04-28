@@ -8,16 +8,16 @@ import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from common_utils.logger import create_logger
 
-from meals import RecipeManager
-from subscriptions.subscriptions import SubscriptionHandler
-from settings import SettingsHandler
-from messaging import MessageHandler
-from favorites import FavoritesHandler
+from src.telegram.recipes import RecipeManager
+from src.telegram.messaging import MessageHandler
+from src.telegram.callbacks.subscriptions import SubscriptionHandler
+from src.telegram.callbacks.settings import SettingsHandler
+from src.telegram.callbacks.favorites import FavoritesHandler
 
 
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
-    meal_manager = RecipeManager()
+    recipe_manager = RecipeManager()
     restart_time = 60
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
@@ -36,12 +36,12 @@ class TelegramBot:
         InlineButton('🔥 Kalorien (min.)', callback_data='settings|cal_min')
     )
 
-    def __init__(self, secret_env_name='TELEGRAM_BOT_TOKEN'):
+    def __init__(self, secret_env_name='TELEGRAM_BOT_TOKEN', callback_delim='|'):
         load_dotenv()
         self.bot = telebot.TeleBot(getenv(secret_env_name))
-        self.options_handler = SettingsHandler(self.bot, self.meal_manager)
-        self.message_handler = MessageHandler(self.options_handler, self.meal_manager, self.bot)
-        self.callback_delimiter = self.options_handler.callback_delim
+        self.callback_delimiter = callback_delim
+        self.settings_handler = SettingsHandler(self.bot, self.recipe_manager, callback_delimiter=callback_delim)
+        self.message_handler = MessageHandler(self.settings_handler, self.recipe_manager, self.bot)
         self.subscriptions_handler = SubscriptionHandler(self.bot, self.message_handler)
         self.favorites_handler = FavoritesHandler()
         self.setup_message_handlers()
@@ -106,7 +106,7 @@ class TelegramBot:
         def send_favorites(message):
             _log_incoming_message(message)
             favorite_ids = self.favorites_handler.get_favorites(chat_id=message.chat.id)
-            favorite_recipes = self.meal_manager.get_recipe_titles(favorite_ids)
+            favorite_recipes = self.recipe_manager.get_recipe_titles(favorite_ids)
             favorite_recipes = sorted(favorite_recipes)
             response = "⭐️ Hier sind deine Favoriten:"
             for recipe in favorite_recipes:
@@ -126,16 +126,21 @@ class TelegramBot:
         """ Add all callback query handlers to the bot. """
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('settings|'))
-        def handle_settings(call):
+        def handle_settings_menu(call):
             _log_incoming_callback(call)
             setting_name = call.data.replace('settings|', '')
-            self.options_handler.handle_settings_callback(setting_name, call.message)
+            setting_options_menu = self.settings_handler.get_setting_options_menu(setting_name=setting_name)
+            self.bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                **setting_options_menu
+            )
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('option|'))
-        def handle_option(call):
+        def handle_settings_option(call):
             _log_incoming_callback(call)
             call_data = call.data.replace('option|', '')
-            self.options_handler.handle_user_setting_callback(call_data, call.message)
+            self.settings_handler.handle_user_setting_callback(call_data, call.message)
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('woechentlich|'))
         def handle_woechentlich(call):
