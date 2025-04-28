@@ -95,6 +95,10 @@ class RecipeManager:
 
         return recipes_df
 
+    def get_num_of_recipes_filtered_by_user_settings(self, user_settings: UserSettings) -> int:
+        recipes_df = self.get_recipes_filtered_by_user_settings(user_settings=user_settings)
+        return len(recipes_df)
+
     def get_recipes_filtered_by_user_settings(self, user_settings: UserSettings) -> pd.DataFrame:
         """
         Filters the recipes based on user settings and returns the number of selected recipes.
