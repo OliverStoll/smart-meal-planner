@@ -17,7 +17,7 @@ from src.telegram.callbacks.favorites import FavoritesHandler
 
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
-    recipe_manager = RecipeManager()
+    recipes = RecipeManager()
     restart_time = 60
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
@@ -40,8 +40,8 @@ class TelegramBot:
         load_dotenv()
         self.bot = telebot.TeleBot(getenv(secret_env_name))
         self.callback_delimiter = callback_delim
-        self.settings_handler = SettingsHandler(self.bot, self.recipe_manager, callback_delimiter=callback_delim)
-        self.message_handler = MessageHandler(self.settings_handler, self.recipe_manager, self.bot)
+        self.settings = SettingsHandler(callback_delimiter=callback_delim)
+        self.message_handler = MessageHandler(self.settings, self.recipes, self.bot)
         self.subscriptions_handler = SubscriptionHandler(self.bot, self.message_handler)
         self.favorites_handler = FavoritesHandler()
         self.setup_message_handlers()
@@ -106,7 +106,7 @@ class TelegramBot:
         def send_favorites(message):
             _log_incoming_message(message)
             favorite_ids = self.favorites_handler.get_favorites(chat_id=message.chat.id)
-            favorite_recipes = self.recipe_manager.get_recipe_titles(favorite_ids)
+            favorite_recipes = self.recipes.get_recipe_titles(favorite_ids)
             favorite_recipes = sorted(favorite_recipes)
             response = "⭐️ Hier sind deine Favoriten:"
             for recipe in favorite_recipes:
@@ -129,7 +129,10 @@ class TelegramBot:
         def handle_settings_menu(call):
             _log_incoming_callback(call)
             setting_name = call.data.replace('settings|', '')
-            setting_options_menu = self.settings_handler.get_setting_options_menu(setting_name=setting_name)
+            setting_options_menu = self.settings.get_setting_options_menu(setting_name=setting_name)
+            if not setting_options_menu:
+                self.log.warning(f"Invalid setting name: {setting_name}")
+                return
             self.bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
@@ -140,7 +143,22 @@ class TelegramBot:
         def handle_settings_option(call):
             _log_incoming_callback(call)
             call_data = call.data.replace('option|', '')
-            self.settings_handler.handle_user_setting_callback(call_data, call.message)
+            if call_data.count(self.callback_delimiter) != 1:
+                self.log.warning(f"Invalid callback data format: {call.data}")
+                return
+            chat_id = call.message.chat.id
+            setting_type, setting_option = self.settings.handle_setting_user_setting_option(
+                call_data=call_data, chat_id=chat_id
+            )
+            response = self.settings.get_setting_option_confirmation_message(
+                setting_type=setting_type, option_value=setting_option,
+            )
+            if setting_type.is_filter:
+                user_settings = self.settings.get_user_settings(chat_id=chat_id)
+                num_options = self.recipes.get_num_of_recipes_filtered_by_user_settings(user_settings=user_settings)
+                response += self.settings.get_complete_filter_confirmation_message(num_meal_options=num_options)
+
+            self.bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=response)
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('woechentlich|'))
         def handle_woechentlich(call):
