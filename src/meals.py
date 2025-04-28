@@ -102,10 +102,10 @@ class RecipeManager:
     def _filter_recipes_by_meal_type(recipes_df: pd.DataFrame, meal_type: str) -> pd.DataFrame:
         if meal_type == 'vegetarisch':
             tags = ['vegetarisch', 'vegan']
-            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))]
+            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x.lower() for tag in tags))]
         elif meal_type == 'vegan':
             tags = ['vegan']
-            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x for tag in tags))]
+            recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: any(tag in x.lower() for tag in tags))]
         elif meal_type == 'protein':
             negativ_tags = ['vegetarisch', 'vegan']
             recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: not any(tag in x for tag in negativ_tags))]
