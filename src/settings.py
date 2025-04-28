@@ -163,8 +163,9 @@ class SettingsHandler:
         meal_type = options_file['meal_type'].get(str(chat_id), None)
         max_duration = options_file['max_duration'].get(str(chat_id), 999)
         cal_min = options_file['cal_min'].get(str(chat_id), 0)
+        portions = options_file['portions'].get(str(chat_id), 2)
         user_settings = UserSettings(
-            portions=options_file['portions'].get(str(chat_id), 2),
+            portions=portions,
             meal_type=meal_type,
             max_duration=max_duration,
             cal_min=cal_min
