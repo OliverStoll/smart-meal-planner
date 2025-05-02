@@ -18,7 +18,7 @@ from src.telegram.callbacks.favorites import FavoritesHandler
 class TelegramBot:
     log = create_logger("Telegram Meal Bot")
     recipes = RecipeManager()
-    restart_time = 60
+    restart_time = 10
     intro_response = (
         f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
         f"Hier kannst du dir mehrere Rezepte für die Woche, mit einer übersichtlichen Einkaufsliste zusenden lassen. \n\n"
@@ -38,21 +38,27 @@ class TelegramBot:
 
     def __init__(self, secret_env_name='TELEGRAM_BOT_TOKEN', callback_delim='|'):
         load_dotenv()
-        self.bot = telebot.TeleBot(getenv(secret_env_name))
         self.callback_delimiter = callback_delim
+        self.bot = telebot.TeleBot(getenv(secret_env_name))
         self.settings = SettingsHandler(callback_delimiter=callback_delim)
-        self.message_handler = MessageHandler(self.settings, self.recipes, self.bot)
-        self.subscriptions_handler = SubscriptionHandler(self.bot, self.message_handler)
         self.favorites_handler = FavoritesHandler()
+        self.message_handler = MessageHandler(
+            settings_handler=self.settings,
+            recipe_handler=self.recipes,
+            favorites_handler=self.favorites_handler,
+            bot=self.bot
+        )
+        self.subscriptions_handler = SubscriptionHandler(bot=self.bot, message_handler=self.message_handler)
+
         self.setup_message_handlers()
         self.setup_message_callbacks()
 
-    def start_bot(self, raise_exceptions: bool = False) -> None:
+    def start_bot(self, debug: bool = False) -> None:
         """ Start the bot in a loop, restarting it if it crashes. """
         self.log.info("Starting Bot in a loop!")
         self.subscriptions_handler.schedule_weekly_meal_plans()
         while True:
-            self._start_bot_once(raise_exceptions=raise_exceptions)
+            self._start_bot_once(raise_exceptions=debug)
             time.sleep(self.restart_time)
             self.log.info("Restarting Bot!")
 
@@ -88,39 +94,38 @@ class TelegramBot:
         def send_meal(message):
             _log_incoming_message(message)
             response = "🍽️ Wie viele Gerichte möchtest du?"
-            keyboard = InlineKeyboardMarkup()
-            buttons = _get_enumerated_buttons(prefix='gerichte', start_idx=1, end_idx=6)
-            keyboard.row(*buttons)
+            keyboard = _get_enumerated_keyboard(callback_prefix='gerichte', start_idx=1, end_idx=6)
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 
         @self.bot.message_handler(commands=['woechentlich'])
         def send_weekly(message):
             _log_incoming_message(message)
             response = "📅 Wie viele Gerichte möchtest du wöchentlich (Montags) erhalten?"
-            keyboard = InlineKeyboardMarkup()
-            buttons = _get_enumerated_buttons(prefix='woechentlich', start_idx=0, end_idx=6)
-            keyboard.row(*buttons)
+            keyboard = _get_enumerated_keyboard(callback_prefix='woechentlich', start_idx=1, end_idx=6)
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 
         @self.bot.message_handler(commands=['favoriten'])
         def send_favorites(message):
             _log_incoming_message(message)
             favorite_ids = self.favorites_handler.get_favorites(chat_id=message.chat.id)
-            favorite_recipes = self.recipes.get_recipe_titles(favorite_ids)
-            favorite_recipes = sorted(favorite_recipes)
-            response = "⭐️ Hier sind deine Favoriten:"
-            for recipe in favorite_recipes:
-                response += f"\n  - {recipe}"
-            self.bot.send_message(chat_id=message.chat.id, text=response)
+            num_favorites = len(favorite_ids)
+            num_options = min(6, num_favorites)
+            response = f"⭐️ Wie viele favorisierte Rezepte möchtest du?"
+            keyboard = _get_enumerated_keyboard(callback_prefix='fav_gerichte', start_idx=1, end_idx=num_options)
+            self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 
         def _log_incoming_message(message):
             self.log.debug(f"[{message.chat.username}] Received message: {message.text}")
 
-        def _get_enumerated_buttons(prefix, start_idx, end_idx, delim='|'):
-            return [
-                InlineButton(f"{i}", callback_data=f'{prefix}{delim}{i}')
+        def _get_enumerated_keyboard(callback_prefix, start_idx, end_idx, delim='|'):
+            """ Create a keyboard with enumerated buttons. """
+            keyboard = InlineKeyboardMarkup()
+            buttons = [
+                InlineButton(f"{i}", callback_data=f'{callback_prefix}{delim}{i}')
                 for i in range(start_idx, end_idx + 1)
             ]
+            keyboard.row(*buttons)
+            return keyboard
 
     def setup_message_callbacks(self):
         """ Add all callback query handlers to the bot. """
@@ -147,13 +152,14 @@ class TelegramBot:
                 self.log.warning(f"Invalid callback data format: {call.data}")
                 return
             chat_id = call.message.chat.id
-            setting_type, setting_option = self.settings.handle_setting_user_setting_option(
+            setting_name, setting_option = self.settings.handle_setting_user_setting_option(
                 call_data=call_data, chat_id=chat_id
             )
+            setting_properties = self.settings.get_setting_properties(setting_name)
             response = self.settings.get_setting_option_confirmation_message(
-                setting_type=setting_type, option_value=setting_option,
+                setting_name=setting_name, option_value=setting_option,
             )
-            if setting_type.is_filter:
+            if setting_properties.is_filter:
                 user_settings = self.settings.get_user_settings(chat_id=chat_id)
                 num_options = self.recipes.get_num_of_recipes_filtered_by_user_settings(user_settings=user_settings)
                 response += self.settings.get_complete_filter_confirmation_message(num_meal_options=num_options)
@@ -169,15 +175,17 @@ class TelegramBot:
         def handle_replace(call):
             _log_incoming_callback(call)
             try:
-                _, msg_id_str, recipe_id = call.data.split(self.callback_delimiter)
-                shopping_list_msg_id = int(msg_id_str)
+                _, shopping_list_msg_id_str, recipe_id = call.data.split(self.callback_delimiter)
+                shopping_list_msg_id = int(shopping_list_msg_id_str)
+                message_id, chat_id = call.message.message_id, call.message.chat.id
                 self.message_handler.resend_messages_to_replace_meal(
-                    message=call.message,
+                    recipe_id=recipe_id,
+                    message_id=message_id,
+                    chat_id=chat_id,
                     related_shopping_list_message_id=shopping_list_msg_id,
-                    recipe_id=recipe_id
                 )
             except (ValueError, IndexError) as e:
-                self.log.warning(f"Invalid 'replace' format: {call.data}")
+                self.log.warning(f"Invalid 'replace' format: {call.data} - {str(e)}")
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('favorite|'))
         def handle_favorite(call):
@@ -188,9 +196,11 @@ class TelegramBot:
                     chat_id=call.message.chat.id,
                     recipe_id=recipe_id
                 )
-                self.bot.answer_callback_query(callback_query_id=call.id, text="Added to favorites ⭐️")
+                recipe_title = self.recipes.get_recipe_titles_by_id(recipe_ids=[recipe_id])[0]
+                answer_text = f"⭐️ {recipe_title:30} wurde favorisiert"
+                self.bot.answer_callback_query(callback_query_id=call.id, text=answer_text)
             except (ValueError, IndexError) as e:
-                self.log.warning(f"Invalid 'favorite' format: {call.data}")
+                self.log.warning(f"Invalid 'favorite' format: {call.data} - {str(e)}")
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('unfavorite'))
         def handle_unfavorite(call):
@@ -201,9 +211,11 @@ class TelegramBot:
                     chat_id=call.message.chat.id,
                     recipe_id=recipe_id
                 )
-                self.bot.answer_callback_query(callback_query_id=call.id, text="Removed from favorites ❌")
+                recipe_title = self.recipes.get_recipe_titles_by_id(recipe_ids=[recipe_id])[0]
+                answer_text = f"❌ {recipe_title:30} wurde unfavorisiert"
+                self.bot.answer_callback_query(callback_query_id=call.id, text=answer_text)
             except (ValueError, IndexError) as e:
-                self.log.warning(f"Invalid 'unfavorite' format: {call.data}")
+                self.log.warning(f"Invalid 'unfavorite' format: {call.data} - {str(e)}")
 
         @self.bot.callback_query_handler(func=lambda call: call.data.startswith('gerichte'))
         def handle_gerichte(call):
@@ -211,13 +223,35 @@ class TelegramBot:
             try:
                 call_data = call.data.replace(f'gerichte{self.callback_delimiter}', '')
                 num_meals = int(call_data)
-                self.message_handler.send_meals_message(
+                self.message_handler.send_full_recipes_message(
                     chat_id=call.message.chat.id,
                     previous_shopping_list_message_id=call.message.message_id,
                     num_meals=num_meals
                 )
-            except ValueError:
-                self.log.warning(f"Invalid 'gerichte' value: {call.data}")
+            except ValueError as e:
+                self.log.warning(f"Invalid 'gerichte' value: {call.data} - {str(e)}")
+
+        @self.bot.callback_query_handler(func=lambda call: call.data.startswith('fav_gerichte'))
+        def handle_fav_gerichte(call):
+            _log_incoming_callback(call)
+            try:
+                chat_id = call.message.chat.id
+                call_data = call.data.replace(f'fav_gerichte{self.callback_delimiter}', '')
+                num_recipes = int(call_data)
+                user_settings = self.settings.get_user_settings(chat_id=chat_id)
+                favorite_recipe_ids = self.favorites_handler.get_favorites(chat_id=chat_id)
+                recipes_df = self.recipes.get_recipes_by_id(recipe_ids=favorite_recipe_ids)
+                sampled_recipes = self.recipes.sample_fitting_recipes(
+                    num_recipes=num_recipes,
+                    user_settings=user_settings,
+                    recipes=recipes_df
+                )
+                self.message_handler.send_full_recipes_message(
+                    chat_id=chat_id,
+                    recipes_to_send=sampled_recipes,
+                )
+            except ValueError as e:
+                self.log.warning(f"Invalid 'fav_gerichte' value: {call.data} - {str(e)}")
 
         @self.bot.callback_query_handler(func=lambda call: True)
         def handle_all_other_callbacks(call):
@@ -231,5 +265,5 @@ class TelegramBot:
 
 if __name__ == "__main__":
     TelegramBot().start_bot(
-        raise_exceptions=True
+#         debug=True
     )
