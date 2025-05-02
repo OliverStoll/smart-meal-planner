@@ -27,7 +27,7 @@ class SubscriptionHandler:
         self.log.info("Sending weekly meal plans!")
         subscriptions = self.get_all_subscriptions()
         for chat_id, num_meals in subscriptions.items():
-            self.message_handler.send_meals_message(
+            self.message_handler.send_full_recipes_message(
                 chat_id=chat_id,
                 num_meals=num_meals
             )

@@ -1,40 +1,20 @@
 import json
-from dataclasses import dataclass
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
-from telebot import types, TeleBot
+from telebot import types
 
 from common_utils.apis.firebase import FirebaseClient
 from common_utils.config import secret
 
-# from src.telegram.recipes import RecipeManager
+from src.telegram.callbacks.settings_types import SettingsProperties, UserSettings
 
-
-@dataclass
-class SettingsType:
-    name: str
-    friendly_name: str
-    options: list[str | int]
-    default_value: str | int
-    query_message: str
-    confirmation_message: str
-    option_labels: dict[str, str] = None
-    is_filter: bool = False
-    
-
-@dataclass
-class UserSettings:
-    portions: int = 2
-    meal_type: str = 'alle'
-    max_duration: int = 120
-    cal_min: int = 0
 
 
 class SettingsHandler:
     user_settings_path = 'data/options.json'
     user_settings_ref = 'AppData/Telegram Meal Bot/User Settings'
     firebase_env = 'FIREBASE_REALTIME_DB_URL'
-    settings: dict[str, SettingsType] = {
-        'portions': SettingsType(
+    settings: dict[str, SettingsProperties] = {
+        'portions': SettingsProperties(
             name='portions',
             friendly_name='Portionsanzahl',
             options=[1, 2, 3, 4, 5, 6],
@@ -42,7 +22,7 @@ class SettingsHandler:
             query_message='🍽️ Wähle die Anzahl der Portionen pro Gericht:',
             confirmation_message='🍽️ Du erhältst jetzt Rezepte für {value} Portionen.',
         ),
-        'meal_type': SettingsType(
+        'meal_type': SettingsProperties(
             name='meal_type',
             friendly_name='Art der Gerichte',
             options=['alle', 'vegetarisch', 'vegan', 'protein'],
@@ -57,7 +37,7 @@ class SettingsHandler:
             },
             is_filter=True,
         ),
-        'max_duration': SettingsType(
+        'max_duration': SettingsProperties(
             name='max_duration',
             friendly_name='Kochzeit',
             options=[10, 15, 20, 25, 30, 45, 60, 90],
@@ -66,7 +46,7 @@ class SettingsHandler:
             confirmation_message='⏱️ Deine maximale Kochzeit beträgt {value} Minuten.',
             is_filter=True,
         ),
-        'cal_min': SettingsType(
+        'cal_min': SettingsProperties(
             name='cal_min',
             friendly_name='Kalorien (min.)',
             options=[0, 500, 600, 700, 800, 900],
@@ -105,7 +85,7 @@ class SettingsHandler:
             'reply_markup': keyboard
         }
 
-    def handle_setting_user_setting_option(self, call_data: str, chat_id: int) -> tuple[SettingsType | None, str | int]:
+    def handle_setting_user_setting_option(self, call_data: str, chat_id: int) -> tuple[str, str | int]:
         """
         Handles the callback of the user setting selection. Sets the user setting and get the Setting Type object.
 
@@ -113,35 +93,48 @@ class SettingsHandler:
             call_data (str): The data from the callback query.
             message (types.Message): The original message object used to edit the message and access user data.
             chat_id (int): The chat ID of the user.
+
+        Returns:
+            tuple[str, str | int]: The setting name and the selected option value.
         """
         # chat_id = message.chat.id
         setting_name, setting_option = call_data.split(self.callback_delim)
         setting_option = self._try_convert_str_to_int(setting_option)
         self.set_user_setting(chat_id=chat_id, setting_name=setting_name, setting_option=setting_option)
-        setting_type = self.settings.get(setting_name, None)
 
+        return setting_name, setting_option
 
-        return setting_type, setting_option
-
-    @staticmethod
-    def get_setting_option_confirmation_message(setting_type: SettingsType, option_value: str | int):
+    def get_setting_option_confirmation_message(self, setting_name: str, option_value: str | int):
         """ 
         Returns a confirmation message for the selected setting option
         
         Args:
-            setting_type (SettingsType): The setting type.
+            setting_name (str): The name of the setting.
             option_value (str | int): The selected option value.
             chat_id (int | None): The chat ID (optional).
         """
-        if setting_type.option_labels and option_value in setting_type.option_labels:
-            option_value = setting_type.option_labels[option_value]
-        response = setting_type.confirmation_message.format(value=option_value)
+        setting_properties = self.get_setting_properties(setting_name)
+        if setting_properties.option_labels and option_value in setting_properties.option_labels:
+            option_value = setting_properties.option_labels[option_value]
+        response = setting_properties.confirmation_message.format(value=option_value)
         return response
 
     @staticmethod
     def get_complete_filter_confirmation_message(num_meal_options: int) -> str:
         message = f"Es gibt insgesamt {num_meal_options} passende Gerichte für deine Einstellungen."
         return message
+
+    def get_setting_properties(self, setting_name: str) -> SettingsProperties | None:
+        """
+        Returns the SettingsType object for the given setting name.
+
+        Args:
+            setting_name (str): The name of the setting.
+
+        Returns:
+            SettingsProperties: The SettingsType object.
+        """
+        return self.settings.get(setting_name, None)
 
     def set_user_setting(self, chat_id: int, setting_name: str, setting_option: str | int):
         """ Sets a specific user setting in the Firebase database. """

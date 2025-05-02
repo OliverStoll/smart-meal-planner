@@ -5,7 +5,7 @@ from typing import Literal
 from common_utils.logger import create_logger
 from common_utils.config import ROOT_DIR
 
-from src.telegram.callbacks.settings import UserSettings
+from src.telegram.callbacks.settings_types import UserSettings
 
 
 class RecipeManager:
@@ -42,74 +42,63 @@ class RecipeManager:
             ingredients_df_path='data/temp_data/ingredients_manual.csv',    # recipes/ingredients_v2.csv',
             pdf_paths='data/temp_pdfs'
     ):
-        self.recipe_df = pd.read_csv(data_path)
+        self.recipes = pd.read_csv(data_path)
         self.ingredients_df = pd.read_csv(ingredients_df_path)
         self.pdf_path = pdf_paths
 
-    def get_recipe_ingredients_pdfs(
+    def sample_fitting_recipes(
             self,
             num_recipes: int,
-            user_settings: UserSettings | None = None
-    ) -> tuple[str, list[str]]:
-        """
-        Generated the shopping list text and the list of PDF paths for the recipes.
-
-        Args:
-            num_recipes (int): The number of recipes to include.
-            user_settings (UserSettings | None): The user settings for filtering recipes.
-
-        Returns:
-            A tuple containing the shopping list text and a list of PDF paths.
-        """
-        recipes = self.sample_recipes_filtered_by_user_settings(
-            num_recipes=num_recipes,
-            user_settings=user_settings
-        )
-        ingredient_shopping_list = self.get_ingredients_shopping_list(
-            recipes_df=recipes,
-            num_portions=user_settings.portions
-        )
-        recipes_pdf_paths = self.get_pdf_paths_from_recipes(
-            recipes=recipes,
-            num_portions=user_settings.portions
-        )
-        return ingredient_shopping_list, recipes_pdf_paths
-
-    def sample_recipes_filtered_by_user_settings(self, num_recipes: int, user_settings: UserSettings) -> pd.DataFrame:
+            user_settings: UserSettings,
+            recipes: pd.DataFrame = None
+    ) -> pd.DataFrame:
         """
         Filters the recipes based on user settings and returns a DataFrame of selected recipes.
 
         Args:
             num_recipes: The number of recipes to return.
             user_settings: The user settings containing meal type, max duration, and min calories.
+            recipes: Optional; if provided, it will be used instead of the default recipes DataFrame.
 
         Returns:
             A DataFrame containing the filtered recipes.
         """
-        recipes_df = self.get_recipes_filtered_by_user_settings(user_settings=user_settings)
+        if recipes is None:
+            recipes = self.get_recipes_filtered_by_user_settings(user_settings=user_settings)
 
-        if num_recipes < len(recipes_df):
-            recipes_df = recipes_df.sample(num_recipes)
+        if num_recipes < len(recipes):
+            recipes = recipes.sample(num_recipes)
 
-        recipes_df.reset_index(drop=True, inplace=True)
+        recipes.reset_index(drop=True, inplace=True)
 
-        return recipes_df
+        return recipes
 
-    def get_num_of_recipes_filtered_by_user_settings(self, user_settings: UserSettings) -> int:
-        recipes_df = self.get_recipes_filtered_by_user_settings(user_settings=user_settings)
+    def get_num_of_recipes_filtered_by_user_settings(
+            self,
+            user_settings: UserSettings,
+            recipes: pd.DataFrame | None = None) -> int:
+        """
+        Filter the recipes based on user settings and returns the number of selected recipes.
+        """
+        recipes_df = self.get_recipes_filtered_by_user_settings(user_settings=user_settings, recipes=recipes)
         return len(recipes_df)
 
-    def get_recipes_filtered_by_user_settings(self, user_settings: UserSettings) -> pd.DataFrame:
+    def get_recipes_filtered_by_user_settings(
+            self,
+            user_settings: UserSettings,
+            recipes: pd.DataFrame | None = None,
+    ) -> pd.DataFrame:
         """
         Filters the recipes based on user settings and returns the number of selected recipes.
 
         Args:
             user_settings: The user settings containing meal type, max duration, and min calories.
+            recipes: Optional; if provided, will be used instead of the default DataFrame of all recipes.
 
         Returns:
             An integer representing the number of filtered recipes.
         """
-        recipes_df = self.recipe_df
+        recipes_df = recipes or self.recipes
         recipes_df = self._filter_recipes_by_meal_type(recipes_df=recipes_df, meal_type=user_settings.meal_type)
         recipes_df = recipes_df[recipes_df['total_time'] <= user_settings.max_duration]
         recipes_df = recipes_df[recipes_df['calories'] >= user_settings.cal_min]
@@ -129,37 +118,10 @@ class RecipeManager:
             recipes_df = recipes_df[recipes_df['tags'].apply(lambda x: not any(tag in x for tag in negativ_tags))]
         return recipes_df
 
-    def get_pdf_title_from_meal_name(self, meal_name: str) -> str:
+    @staticmethod
+    def get_pdf_title_from_meal_name(meal_name: str) -> str:
         pdf_title = meal_name.replace(':', '').replace('!', '').replace('&', 'und')
         return pdf_title
-
-    def get_pdf_paths_from_recipes(
-            self,
-            recipes: pd.DataFrame,
-            num_portions: int
-    ) -> list[str]:
-        """
-        Returns the paths to the PDF files for the given recipes.
-
-        Args:
-            recipes (pd.DataFrame): DataFrame containing the recipes.
-            num_portions (int): Number of portions to adjust the PDF paths.
-
-        Returns:
-            list[str]: List of paths to the PDF files.
-        """
-        titles = recipes['title'].tolist()
-        self.log.info(f"Recipes: {titles}")
-        pdf_dir = self.pdf_path
-        pdf_with_portions_dir = f"{pdf_dir}/{num_portions}"
-        if os.path.exists(pdf_with_portions_dir):
-            pdf_dir = pdf_with_portions_dir
-            self.log.info(f"Using PDFs with portions: {num_portions}")
-        _pdf_paths = [f"{pdf_dir}/{self.get_pdf_title_from_meal_name(title)}.pdf" for title in titles]
-        for pdf in _pdf_paths:
-            if not os.path.exists(pdf):
-                self.log.error(f"PDF not found: {pdf}")
-        return _pdf_paths
 
     def get_ingredients_shopping_list(
             self,
@@ -197,6 +159,32 @@ class RecipeManager:
         ingredients_df['unit'] = ingredients_df['unit'].replace('Stück', '')
         ingredients_list_str = self._generate_ingredients_shopping_list_text(ingredients_df)
         return ingredients_list_str
+
+    def get_recipes_by_id(self, recipe_ids: list[str]) -> pd.DataFrame:
+        """
+        Retrieves recipes based on the provided recipe IDs.
+
+        Args:
+            recipe_ids (list[str]): List of recipe IDs.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the recipes corresponding to the provided IDs.
+        """
+        recipes_df = self.recipes[self.recipes['id'].isin(recipe_ids)]
+        return recipes_df
+
+    def get_recipe_titles_by_id(self, recipe_ids: list[str]) -> list[str]:
+        """
+        Retrieves recipe names based on the provided recipe IDs.
+
+        Args:
+            recipe_ids (list[str]): List of recipe IDs.
+
+        Returns:
+            list[str]: List of recipe names corresponding to the provided IDs.
+        """
+        recipes_df = self.recipes[self.recipes['id'].isin(recipe_ids)]
+        return recipes_df['title'].tolist()
 
     def _sort_ingredients_data(
             self,
@@ -284,26 +272,8 @@ class RecipeManager:
         ingredients_df.reset_index(inplace=True)
         return ingredients_df
 
-    def _filter_ingredients(self, ingredients_df: pd.DataFrame, ingredients_to_filter: list[str]) -> pd.DataFrame:
+    @staticmethod
+    def _filter_ingredients(ingredients_df: pd.DataFrame, ingredients_to_filter: list[str]) -> pd.DataFrame:
         pattern = '|'.join(ingredients_to_filter)
         ingredients_df = ingredients_df[~ingredients_df['name'].str.contains(pattern, case=False)]
         return ingredients_df
-
-    def get_recipe_titles(self, recipe_ids: list[str]) -> list[str]:
-        """
-        Retrieves recipe names based on the provided recipe IDs.
-
-        Args:
-            recipe_ids (list[str]): List of recipe IDs.
-
-        Returns:
-            list[str]: List of recipe names corresponding to the provided IDs.
-        """
-        recipes_df = self.recipe_df[self.recipe_df['id'].isin(recipe_ids)]
-        return recipes_df['title'].tolist()
-
-
-if __name__ == '__main__':
-    messager = HfMealManager()
-    groceries, pdf_paths = messager.get_recipe_ingredients_pdfs(3, meal_type='vegetarisch')
-    print(groceries)
