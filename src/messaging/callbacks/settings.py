@@ -5,7 +5,7 @@ from telebot import types
 from common_utils.apis.firebase import FirebaseClient
 from common_utils.config import secret
 
-from src.telegram.callbacks.settings_types import SettingsProperties, UserSettings
+from src.messaging.callbacks.settings_types import SettingsProperties, UserSettings
 
 
 

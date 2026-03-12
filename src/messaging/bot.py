@@ -8,11 +8,11 @@ import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from common_utils.logger import create_logger
 
-from src.telegram.recipes import RecipeManager
-from src.telegram.messaging import MessageHandler
-from src.telegram.callbacks.subscriptions import SubscriptionHandler
-from src.telegram.callbacks.settings import SettingsHandler
-from src.telegram.callbacks.favorites import FavoritesHandler
+from src.messaging.recipes import RecipeManager
+from src.messaging.messaging import MessageHandler
+from src.messaging.callbacks.subscriptions import SubscriptionHandler
+from src.messaging.callbacks.settings import SettingsHandler
+from src.messaging.callbacks.favorites import FavoritesHandler
 
 
 class TelegramBot:

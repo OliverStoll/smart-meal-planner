@@ -8,14 +8,13 @@ import traceback
 from pandas import DataFrame
 from time import sleep
 import os
-from utils.logger import create_logger
-
+from logging import getLogger
 
 debug_url = "https://www.supermarktcheck.de/product/209354-milram-milch-reis"
 
 
 class SupermarketScraper:
-    log = create_logger("Supermarket Scraper")
+    log = getLogger("Supermarket Scraper")
     num_threads = 20
 
     def __init__(self):
@@ -23,7 +22,6 @@ class SupermarketScraper:
         self.threaded_results = {}
         with open("data/supermarkets/cookies.pkl", "rb") as file:
             self.cookies = pickle.load(file)
-
 
     def get_all_product_links(self, supermarket: str):
         data_dir = f"data/supermarkets/{supermarket}"
@@ -49,7 +47,6 @@ class SupermarketScraper:
             json.dump(product_links, file)
         return product_links
 
-
     def get_webdriver(self, use_cookies=True):
         options = Options()
         options.add_argument("--headless")  # Run in headless mode
@@ -61,18 +58,17 @@ class SupermarketScraper:
             driver.refresh()
         return driver
 
-
     def scrape_product(self, url: str, driver: webdriver.Chrome):
         driver.get(url)
         # sleep(2)
         data_selectors = {
-            'title': "h1",
-            'producer': "#uebersicht dl > dd",
-            'prices': "#preise > div:nth-child(2) > table tbody",
-            'nutrients': "#naehrwerte > div > div > div:nth-child(1) > div.table-responsive",
-            'sellers': "#uebersicht p.sources",
+            "title": "h1",
+            "producer": "#uebersicht dl > dd",
+            "prices": "#preise > div:nth-child(2) > table tbody",
+            "nutrients": "#naehrwerte > div > div > div:nth-child(1) > div.table-responsive",
+            "sellers": "#uebersicht p.sources",
         }
-        results = {'url': url}
+        results = {"url": url}
         for selector in data_selectors:
             try:
                 data = driver.find_element(By.CSS_SELECTOR, data_selectors[selector])
@@ -81,7 +77,6 @@ class SupermarketScraper:
             except:
                 results[selector] = None
         return results
-
 
     def scrape_products_threaded(self, product_links, driver, thread_id):
         all_product_results = []
@@ -94,7 +89,6 @@ class SupermarketScraper:
                 exception_type = type(e).__name__
                 self.log.error(f"[{thread_id}][{idx}] {link} | {exception_type}")
         self.threaded_results[thread_id] = all_product_results
-
 
     def scrape_all_products(self, supermarket: str | None = None):
         self.log.info(f"Scraping {supermarket if supermarket else 'all supermarkets'}")
@@ -114,7 +108,7 @@ class SupermarketScraper:
             thread_webdriver = self.get_webdriver()
             thread = Thread(
                 target=self.scrape_products_threaded,
-                args=(product_links[idx::self.num_threads], thread_webdriver, idx)
+                args=(product_links[idx :: self.num_threads], thread_webdriver, idx),
             )
             self.threads.append(thread)
             thread.start()
@@ -125,7 +119,6 @@ class SupermarketScraper:
             all_product_results.extend(self.threaded_results[idx])
         product_data = DataFrame(all_product_results)
         product_data.to_csv(f"{data_dir}/product_data.csv", index=False)
-
 
 
 if __name__ == "__main__":

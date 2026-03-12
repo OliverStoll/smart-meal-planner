@@ -5,8 +5,8 @@ from common_utils.logger import create_logger
 from PIL import Image
 from io import BytesIO
 
-from src.telegram.callbacks.settings_types import UserSettings
-from src.telegram.callbacks.favorites import FavoritesHandler
+from src.messaging.callbacks.settings_types import UserSettings
+from src.messaging.callbacks.favorites import FavoritesHandler
 
 
 class MessageHandler:
@@ -31,7 +31,7 @@ class MessageHandler:
         self.bot = bot
         # persistent data
         self.last_sent_recipes_df = {}
-        self.pdf_handler = PdfMessageHandler(bot=bot, recipes=self.recipe_handler.recipes)
+        self.pdf_handler = PdfMessageHandler(bot=bot, recipes=self.recipe_handler.raw_recipes)
 
     def send_full_recipes_message(
             self,
