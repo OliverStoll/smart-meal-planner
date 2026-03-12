@@ -1,6 +1,6 @@
 # 🥦 Smart Meal Planner
 
-A Telegram bot that helps you plan your weekly meals, generate shopping lists, and discover personalised recipe recommendations — powered by HelloFresh data and OpenAI embeddings.
+A Telegram bot that helps you plan your weekly meals, generate shopping lists, and discover personalised recipe recommendations powered by HelloFresh data and OpenAI embeddings.
 
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/OliverStoll/smart-meal-planner/python-app.yml?branch=main)
