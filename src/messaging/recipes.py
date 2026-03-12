@@ -5,7 +5,7 @@ from typing import Literal
 from common_utils.logger import create_logger
 from common_utils.config import ROOT_DIR
 
-from src.telegram.callbacks.settings_types import UserSettings
+from src.messaging.callbacks.settings_types import UserSettings
 
 
 class RecipeManager:

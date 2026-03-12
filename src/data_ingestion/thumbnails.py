@@ -4,9 +4,12 @@ import requests
 import numpy as np
 import os
 from threading import Thread
+from logging import getLogger
 
 from utils.config import ROOT_DIR
-from utils.logger import create_logger
+
+from data_ingestion import CLEANED_RECIPES_TABLE
+from database.engine import engine
 
 
 def crop_to_square(img: Image.Image) -> Image.Image:
@@ -35,7 +38,7 @@ def get_image(image_url: str, title: str) -> Image.Image | None:
 
 
 def save_single_image(row, index):
-    image = get_image(image_url=row['hero_image'], title=row['title'])
+    image = get_image(image_url=row["hero_image"], title=row["title"])
     save_path = f'{output_path}/{row["title"]}.jpg'
     image.save(save_path, quality=25)
     log.debug(f"[{index}] Saved image for {row['title']} to {save_path}")
@@ -51,7 +54,7 @@ def save_images_threaded(df: pd.DataFrame, num_threads: int = 20):
     threads = []
 
     for idx, df_part in enumerate(df_split):
-        thread = Thread(target=save_images, kwargs={'df': df_part})
+        thread = Thread(target=save_images, kwargs={"df": df_part})
         threads.append(thread)
         thread.start()
 
@@ -62,10 +65,9 @@ def save_images_threaded(df: pd.DataFrame, num_threads: int = 20):
 
 
 if __name__ == "__main__":
-    log = create_logger("Image Downloader")
-    input_path = f'{ROOT_DIR}/data/temp_data/cleaned.csv'
-    output_path = f'{ROOT_DIR}/data/temp_thumbs'
+    log = getLogger("Image Downloader")
+    output_path = f"{ROOT_DIR}/data/temp_thumbs"
     os.makedirs(output_path, exist_ok=True)
-    df = pd.read_csv(input_path)
-    df = df[['title', 'hero_image']]
-    save_images_threaded(df)
+    cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
+    cleaned_recipes = cleaned_recipes[["title", "hero_image"]]
+    save_images_threaded(cleaned_recipes)
