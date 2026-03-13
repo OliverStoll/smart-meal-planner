@@ -37,23 +37,25 @@ def pdf_creator():
 @pytest.fixture
 def sample_recipe_entry():
     """Sample recipe pd.Series with instructions that contain placeholders."""
-    return pd.Series({
-        "title": "Pasta Primavera",
-        "instructions": str([
-            ["Add [2 cups] of water.", "Boil."],
-            ["Add [100 g] of pasta."],
-        ]),
-        "instruction_images": str(["http://example.com/img1.jpg", None, ""]),
-        "ingredients": str([
-            {"name": "Pasta", "quantity": "200", "unit": "g"},
-            {"name": "Water", "quantity": "500", "unit": "ml"},
-        ]),
-    })
+    return pd.Series(
+        {
+            "title": "Pasta Primavera",
+            "instructions": str(
+                [
+                    ["Add [2 cups] of water.", "Boil."],
+                    ["Add [100 g] of pasta."],
+                ]
+            ),
+            "instruction_images": str(["http://example.com/img1.jpg", None, ""]),
+            "ingredients": str(
+                [
+                    {"name": "Pasta", "quantity": "200", "unit": "g"},
+                    {"name": "Water", "quantity": "500", "unit": "ml"},
+                ]
+            ),
+        }
+    )
 
-
-# ---------------------------------------------------------------------------
-# TestCropImagePercentages
-# ---------------------------------------------------------------------------
 
 class TestCropImagePercentages:
     def test_no_crop_returns_original_size(self):
@@ -92,10 +94,6 @@ class TestCropImagePercentages:
         assert isinstance(result, Image.Image)
 
 
-# ---------------------------------------------------------------------------
-# TestGetInstructions
-# ---------------------------------------------------------------------------
-
 class TestGetInstructions:
     def test_preserves_structure(self, pdf_creator, sample_recipe_entry):
         result = pdf_creator._get_instructions(sample_recipe_entry, num_meals=2)
@@ -123,9 +121,11 @@ class TestGetInstructions:
         assert "1 cups" in result[0][0]
 
     def test_integer_result_has_no_decimal(self, pdf_creator):
-        entry = pd.Series({
-            "instructions": str([["Add [3 cups] of sugar."]]),
-        })
+        entry = pd.Series(
+            {
+                "instructions": str([["Add [3 cups] of sugar."]]),
+            }
+        )
         result = pdf_creator._get_instructions(entry, num_meals=4)
         assert "6 cups" in result[0][0]
         assert "6.0" not in result[0][0]
@@ -140,10 +140,6 @@ class TestGetInstructions:
             for instruction in step:
                 assert "[" not in instruction and "]" not in instruction
 
-
-# ---------------------------------------------------------------------------
-# TestGetInstructionImages
-# ---------------------------------------------------------------------------
 
 class TestGetInstructionImages:
     def test_returns_none_for_empty_string_url(self, pdf_creator):
@@ -180,10 +176,6 @@ class TestGetInstructionImages:
         assert result[1] is None
 
 
-# ---------------------------------------------------------------------------
-# TestInsertImage
-# ---------------------------------------------------------------------------
-
 class TestInsertImage:
     def test_calls_insert_image_on_page(self, pdf_creator):
         mock_page = MagicMock()
@@ -206,10 +198,6 @@ class TestInsertImage:
         assert call_kwargs.get("stream") is fake_image
 
 
-# ---------------------------------------------------------------------------
-# TestInsertTextbox
-# ---------------------------------------------------------------------------
-
 class TestInsertTextbox:
     def test_calls_insert_textbox_on_page(self, pdf_creator):
         mock_page = MagicMock()
@@ -230,13 +218,10 @@ class TestInsertTextbox:
         assert used_height == 0
 
 
-# ---------------------------------------------------------------------------
-# TestCropPdfPageToHeight
-# ---------------------------------------------------------------------------
-
 class TestCropPdfPageToHeight:
     def test_sets_cropbox_y1_to_given_height(self):
         import fitz
+
         pdf = fitz.open()
         page = pdf.new_page(width=600, height=9999)
         PdfCreator._crop_pdf_page_to_height(500, page)
@@ -245,6 +230,7 @@ class TestCropPdfPageToHeight:
 
     def test_preserves_x0_and_y0(self):
         import fitz
+
         pdf = fitz.open()
         page = pdf.new_page(width=600, height=9999)
         PdfCreator._crop_pdf_page_to_height(300, page)
@@ -254,16 +240,13 @@ class TestCropPdfPageToHeight:
 
     def test_preserves_x1(self):
         import fitz
+
         pdf = fitz.open()
         page = pdf.new_page(width=600, height=9999)
         PdfCreator._crop_pdf_page_to_height(300, page)
         assert page.cropbox.x1 == 600
         pdf.close()
 
-
-# ---------------------------------------------------------------------------
-# TestInsertInstructionStepDivider
-# ---------------------------------------------------------------------------
 
 class TestInsertInstructionStepDivider:
     def test_calls_draw_rect_on_page(self, pdf_creator):
@@ -277,10 +260,6 @@ class TestInsertInstructionStepDivider:
         call_kwargs = mock_page.draw_rect.call_args.kwargs
         assert call_kwargs.get("color") == pdf_creator.instruction_divider_color
 
-
-# ---------------------------------------------------------------------------
-# TestInsertSingleInstructionStep
-# ---------------------------------------------------------------------------
 
 class TestInsertSingleInstructionStep:
     def test_inserts_image_when_provided(self, pdf_creator):
@@ -347,15 +326,13 @@ class TestInsertSingleInstructionStep:
         mock_divider.assert_called_once()
 
 
-# ---------------------------------------------------------------------------
-# TestCreatePdfs
-# ---------------------------------------------------------------------------
-
 class TestCreatePdfs:
     def test_calls_create_pdf_with_text_for_each_recipe(self):
-        recipes = pd.DataFrame({
-            "title": ["Recipe A", "Recipe B"],
-        })
+        recipes = pd.DataFrame(
+            {
+                "title": ["Recipe A", "Recipe B"],
+            }
+        )
         mock_creator = MagicMock()
         with patch("pdf.creation.PdfCreator", return_value=mock_creator):
             create_pdfs(recipes, num_meals=2)
@@ -376,10 +353,6 @@ class TestCreatePdfs:
         _, call_kwargs = mock_creator.create_pdf_with_text.call_args
         assert call_kwargs.get("num_meals") == 4
 
-
-# ---------------------------------------------------------------------------
-# TestCreatePdfsThreaded
-# ---------------------------------------------------------------------------
 
 class TestCreatePdfsThreaded:
     def test_completes_without_error(self):

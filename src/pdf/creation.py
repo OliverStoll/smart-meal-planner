@@ -1,4 +1,4 @@
-import io
+from io import BytesIO
 import requests
 import pandas as pd
 import os
@@ -6,15 +6,18 @@ import re
 import ast
 import fitz
 from PIL import Image
-from logging import getLogger
 from common_utils.config import ROOT_DIR
+from common_utils.logger import create_logger
 
+from data_ingestion import CLEANED_RECIPES_TABLE
+from database.engine import engine
+from database.storage import upload_file
 from messaging.recipes import RecipeManager
 from pdf.download import PdfManager
 
 
 class PdfCreator:
-    log = getLogger("PDF Creator")
+    log = create_logger("PDF Creator")
     height = 9999
     text_l_padding = 175
     left_padding = 5
@@ -39,40 +42,26 @@ class PdfCreator:
     image_quality = 25
     instruction_divider_color = 0.6
 
-    def __init__(self, save_dir: str = f"{ROOT_DIR}/data/temp_pdfs"):
-        self.save_dir = save_dir
-        os.makedirs(self.save_dir, exist_ok=True)
+    def __init__(self, meal_manager: RecipeManager):
         fitz.Font(self.fontname_ingredients)
-        self.meal_manager = RecipeManager()
+        self.meal_manager = meal_manager
 
     def create_pdf_with_text(self, recipe_entry: pd.Series, num_meals: int):
         pdf_title = PdfManager.get_pdf_title(recipe_entry["title"])
         pdf = fitz.open()
-        # self.insert_page_hero_image(pdf, pdf_title)
         self.insert_page_with_ingredients(pdf, recipe_entry, num_meals)
         self.insert_page_with_instructions(pdf, recipe_entry, num_meals)
-        # save pdf
-        os.makedirs(f"{self.save_dir}/{num_meals}", exist_ok=True)
-        new_pdf_title = pdf_title.replace("_", " ")
-        pdf.save(f"{self.save_dir}/{num_meals}/{new_pdf_title}.pdf")
-        pdf.close()
-        return
+        self.save_pdf(pdf, num_meals, pdf_title)
 
-    def insert_page_hero_image(self, pdf, pdf_title):
-        """
-        Inserts a hero image as the first page of the pdf.
-        """
-        pdf_title = pdf_title.replace(" ", "_")
-        first_page_img = self._get_center_crop_first_page_img(pdf_title)
-        first_page_img_buffer = io.BytesIO()
-        first_page_img.save(first_page_img_buffer, format="JPEG")
-        first_page_img_buffer.seek(0)
-        first_page = pdf.new_page(width=self.width, height=self.width)
-        first_page.insert_image(
-            fitz.Rect(0, 0, self.width, self.width),
-            stream=first_page_img_buffer,
-            keep_proportion=True,
-        )
+    def save_pdf(self, pdf, num_meals, title):
+        buffer = BytesIO()
+        pdf.save(buffer)
+        pdf.close()
+        buffer.seek(0)
+        ref = f"pdfs/{num_meals}/{title.replace("_", " ")}.pdf"
+        upload_file(buffer, reference=ref)
+        self.log.debug(f"Uploaded pdf for {ref}")
+        return
 
     def _get_center_crop_first_page_img(self, title, path="data/pdfs_v2"):
         """
@@ -81,7 +70,7 @@ class PdfCreator:
         pdf = fitz.open(f"{path}/{title}.pdf")
         page_1 = pdf.load_page(0)
         pix = page_1.get_pixmap()
-        img = Image.open(io.BytesIO(pix.tobytes()))
+        img = Image.open(BytesIO(pix.tobytes()))
         cropped_img = self.crop_image_percentages(img, 0.15, 0.35, 0.24, 0.053)
         return cropped_img
 
@@ -93,12 +82,12 @@ class PdfCreator:
         horizontal_padding: int = 50,
         vertical_padding: int = 30,
     ) -> None:
-
         single_recipe_df = pd.DataFrame([recipe_entry])
         ingredients_text = self.meal_manager.get_ingredients_shopping_list(
-            recipes_df=single_recipe_df, num_portions=num_meals, filter_home_ingredients=False, sorting="category"
+            recipes=single_recipe_df,
+            num_portions=num_meals,
+            filter_home_ingredients=False,
         )
-
         internal_height = 99999
         page = pdf.new_page(width=self.width, height=internal_height)  # type: ignore[attr-defined]
         textbox_rect = fitz.Rect(
@@ -107,7 +96,6 @@ class PdfCreator:
             x1=self.width - horizontal_padding,
             y1=internal_height,
         )
-
         unused_page_height = page.insert_textbox(
             rect=textbox_rect,
             buffer=ingredients_text,
@@ -123,7 +111,6 @@ class PdfCreator:
         all_instructions = self._get_instructions(recipe_entry, num_meals)
         page = pdf.new_page(width=self.width, height=self.height)
         current_height = self.top_padding
-
         for idx, instructions_step in enumerate(all_instructions):
             instruction_image = instruction_images[idx] if len(instruction_images) > idx else None
             current_height = self._insert_single_instruction_step(
@@ -132,13 +119,12 @@ class PdfCreator:
                 instructions_step=instructions_step,
                 current_height=current_height,
             )
-
         self._crop_pdf_page_to_height(full_page_height=current_height, page=page)
 
     def _insert_single_instruction_step(
         self,
         page,
-        instruction_image: io.BytesIO | None,
+        instruction_image: BytesIO | None,
         instructions_step: list[str],
         current_height: int,
     ):
@@ -159,13 +145,10 @@ class PdfCreator:
         for _idx, single_instruction in enumerate(instructions_step):
             used_height = self.insert_textbox(page, single_instruction, position=local_height)
             local_height += used_height + self.paragraph_spacing
-
         required_next_height = local_height + self.instruction_step_spacing
         minimum_next_height = current_height + self.step_height + self.instruction_step_spacing
         next_height = max(minimum_next_height, required_next_height)
-
         self._insert_instruction_step_divider(next_height - self.instruction_step_spacing, page)
-
         return next_height
 
     def _insert_instruction_step_divider(self, height, page):
@@ -178,7 +161,7 @@ class PdfCreator:
         )
         page.draw_rect(line_rect, color=self.instruction_divider_color, width=line_height)
 
-    def _get_instruction_images(self, instruction_images: str) -> list[io.BytesIO]:
+    def _get_instruction_images(self, instruction_images: str) -> list[BytesIO]:
         all_image_links = ast.literal_eval(instruction_images)
         all_images = []
         for idx, image_url in enumerate(all_image_links):
@@ -187,9 +170,9 @@ class PdfCreator:
                 all_images.append(None)
                 continue
             try:
-                image = Image.open(io.BytesIO(requests.get(image_url).content))
+                image = Image.open(BytesIO(requests.get(image_url).content))
                 image = self.crop_image_percentages(image, *self.instruction_img_crop_percentages)
-                img_buffer = io.BytesIO()
+                img_buffer = BytesIO()
                 image.save(img_buffer, format="JPEG", quality=self.image_quality)
                 img_buffer.seek(0)
             except Exception as e:
@@ -200,9 +183,6 @@ class PdfCreator:
 
     def _get_instructions(self, recipe_entry: pd.Series, num_meals: int) -> list[list[str]]:
         """Replaces all placeholders in the instructions with the correct values (with and without unit)"""
-        all_instructions = ast.literal_eval(recipe_entry["instructions"])
-        placeholder_patterns = [r"\[(\d+)\s*(\w+)\]", r"\[(\d+)\s*\w*\]"]
-        factor = num_meals / 2
 
         def multiply_match(match, factor):
             amount = int(match.group(1))
@@ -212,6 +192,9 @@ class PdfCreator:
                 new_amount = int(new_amount)
             return f"{new_amount}{unit}"
 
+        all_instructions = recipe_entry["instructions"]
+        placeholder_patterns = [r"\[(\d+)\s*(\w+)\]", r"\[(\d+)\s*\w*\]"]
+        factor = num_meals / 2
         new_instructions = []
         for idx, instruction_step in enumerate(all_instructions):
             new_step = []
@@ -223,7 +206,7 @@ class PdfCreator:
 
         return new_instructions
 
-    def insert_image(self, page, image: io.BytesIO, page_height: int, image_height: int):
+    def insert_image(self, page, image: BytesIO, page_height: int, image_height: int):
         right_padding = self.text_l_padding - self.img_txt_spacing
         rect = fitz.Rect(x0=self.left_padding, y0=page_height, x1=right_padding, y1=page_height + image_height)
         page.insert_image(rect, stream=image, keep_proportion=True)
@@ -255,8 +238,8 @@ class PdfCreator:
         return img.crop((left, top, right, bottom))
 
 
-def create_pdfs(recipes: pd.DataFrame, num_meals: int):
-    pdf_creator = PdfCreator()
+def create_pdfs(recipes: pd.DataFrame, num_meals: int, meal_manager: RecipeManager):
+    pdf_creator = PdfCreator(meal_manager=meal_manager)
     for i in range(len(recipes)):
         recipe_entry = recipes.iloc[i]
         print(f"[{i}] Creating [meals:{num_meals}] PDF for: {recipe_entry['title']}")
@@ -270,24 +253,27 @@ def create_pdfs_threaded(recipes: pd.DataFrame, num_meals: list[int], num_thread
     from threading import Thread
     import numpy as np
 
+    meal_manager = RecipeManager()
     threads = []
     for num_meal in num_meals:
         meal_recipes_split = np.array_split(recipes, num_threads_per_mealsize)
         for idx, meal_recipes in enumerate(meal_recipes_split, start=1):
-            thread = Thread(target=create_pdfs, kwargs={"recipes": meal_recipes, "num_meals": num_meal})
+            thread = Thread(
+                target=create_pdfs,
+                kwargs={"recipes": meal_recipes, "num_meals": num_meal, "meal_manager": meal_manager},
+            )
             thread.start()
             threads.append(thread)
-
     for thread in threads:
         thread.join()
     print("All threads completed.")
 
 
 if __name__ == "__main__":
-    recipes_path = f"{ROOT_DIR}/data/temp_data/cleaned.csv"
-    recipes = pd.read_csv(recipes_path)
+    recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
+    recipes = recipes
     create_pdfs_threaded(
         recipes=recipes,
         num_meals=[1, 2, 3, 4, 5, 6],
-        num_threads_per_mealsize=2,
+        num_threads_per_mealsize=4,
     )

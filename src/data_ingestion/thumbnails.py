@@ -5,13 +5,13 @@ from PIL import Image
 import requests
 import numpy as np
 from threading import Thread
-from logging import getLogger
+from common_utils.logger import create_logger
 
 from data_ingestion import CLEANED_RECIPES_TABLE
 from database.engine import engine
 from database.storage import upload_file
 
-log = getLogger("Image Downloader")
+log = create_logger("Image Downloader")
 
 
 def crop_to_square(img: Image.Image) -> Image.Image:

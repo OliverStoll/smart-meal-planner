@@ -8,6 +8,7 @@ from common_utils.logger import create_logger
 from config.settings import RECIPE_URL
 from data_ingestion.utils import scroll_driver_down
 from database.engine import table, engine
+from web.driver import create_driver
 
 
 class HelloFreshLinkCrawler:
@@ -38,7 +39,7 @@ class HelloFreshLinkCrawler:
         Returns:
             List of recipe data dictionaries containing recipe links and category paths.
         """
-        driver = webdriver.Chrome()
+        driver = create_driver()
         category_paths = self.get_recipe_category_paths()
         self.log.info(f"Found {len(category_paths)} categories")
         all_categories_link_data = []
@@ -70,7 +71,7 @@ class HelloFreshLinkCrawler:
         Returns:
             List of recipe category paths.
         """
-        driver = webdriver.Chrome()
+        driver = create_driver()
         driver.get(RECIPE_URL)
         category_link_elements = driver.find_elements(By.CSS_SELECTOR, "a")
         category_links = [category.get_attribute("href") for category in category_link_elements]

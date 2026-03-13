@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class SettingsProperties:
     name: str
@@ -15,6 +16,6 @@ class SettingsProperties:
 @dataclass
 class UserSettings:
     portions: int = 2
-    meal_type: str = 'alle'
+    meal_type: str = "alle"
     max_duration: int = 120
     cal_min: int = 0

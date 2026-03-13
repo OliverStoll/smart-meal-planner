@@ -1,0 +1,10 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
+
+def create_driver(headless: bool = False):
+    if not headless:
+        return webdriver.Chrome()
+    options = Options()
+    options.add_argument("--headless")
+    return webdriver.Chrome(options=options)

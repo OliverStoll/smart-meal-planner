@@ -16,4 +16,4 @@ s3 = boto3.client(
 
 
 def upload_file(path_or_obj: str | BytesIO, reference: str):
-    s3.upload_file(path_or_obj, "meal-bot", reference)
+    s3.upload_fileobj(path_or_obj, "meal-bot", reference)

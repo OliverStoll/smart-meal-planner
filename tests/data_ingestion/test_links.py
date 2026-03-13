@@ -5,6 +5,7 @@ import pandas as pd
 from selenium import webdriver
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
+from web.driver import create_driver
 
 
 class TestHelloFreshLinkCrawler:
@@ -16,7 +17,7 @@ class TestHelloFreshLinkCrawler:
         assert len(category_paths) > 50, "Expected at least 50 category paths"
 
     def test_get_recipe_links_of_category(self, category_path):
-        driver = webdriver.Chrome()
+        driver = create_driver()
         links = self.crawler.get_recipes_links_of_category(driver=driver, category_path=category_path)
         driver.close()
         assert isinstance(links, list), "Expected a list of links"

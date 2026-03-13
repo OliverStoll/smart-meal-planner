@@ -7,9 +7,9 @@ from common_utils.apis.firebase import FirebaseClient
 
 class FavoritesHandler:
     log = create_logger("Favorites Handler")
-    favorites_path = 'data/favorites.json'
-    favorites_ref = 'AppData/Telegram Meal Bot/Favorites'
-    firebase_client = FirebaseClient(realtime_db_url=secret('FIREBASE_REALTIME_DB_URL'))
+    favorites_path = "data/favorites.json"
+    favorites_ref = "AppData/Telegram Meal Bot/Favorites"
+    firebase_client = FirebaseClient(realtime_db_url=secret("FIREBASE_REALTIME_DB_URL"))
 
     def favorize_recipe(self, chat_id: int, recipe_id: str):
         """
@@ -23,7 +23,7 @@ class FavoritesHandler:
         ref = f"{self.favorites_ref}/{chat_id}/{recipe_id}"
         self.firebase_client.set_entry(
             ref=ref,
-            data={'favorite': True},
+            data={"favorite": True},
         )
 
     def unfavorize_recipe(self, chat_id: int, recipe_id: str):

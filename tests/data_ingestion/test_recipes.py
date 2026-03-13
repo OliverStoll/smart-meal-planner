@@ -1,10 +1,10 @@
 import os
 from unittest.mock import patch
 import pandas as pd
-from selenium import webdriver
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from data_ingestion.crawler.recipes import HelloFreshRecipeCrawler
+from web.driver import create_driver
 
 
 class TestHelloFreshScraper:
@@ -39,7 +39,7 @@ class TestHelloFreshScraper:
     def test_get_all_recipes_details(self, recipe_links_df):
         output_file = ".temp_test.csv"
         os.remove(output_file) if os.path.exists(output_file) else None
-        driver = webdriver.Chrome()
+        driver = create_driver()
         recipes_details = HelloFreshRecipeCrawler().get_all_recipes_details(
             recipe_links_df, save_path=output_file, driver=driver
         )

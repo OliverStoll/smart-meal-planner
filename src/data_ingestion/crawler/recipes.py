@@ -14,6 +14,7 @@ from common_utils.config import create_logger, ROOT_DIR
 from data_ingestion import RAW_RECIPES_TABLE
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from database.engine import engine
+from web.driver import create_driver
 
 
 class HelloFreshRecipeCrawler:
@@ -74,7 +75,7 @@ class HelloFreshRecipeCrawler:
         recipe_link_entires_split = np.array_split(recipe_link_entries, self.num_threads)
         for idx, recipe_link_entries in enumerate(recipe_link_entires_split, start=1):
             thread_output_path = f"{self.thread_output_path}/{idx}_recipes.csv"
-            driver = webdriver.Chrome()
+            driver = create_driver()
             thread = Thread(
                 target=self.get_all_recipes_details,
                 args=(recipe_link_entries, thread_output_path, driver),

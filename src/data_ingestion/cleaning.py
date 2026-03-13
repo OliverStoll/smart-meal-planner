@@ -206,11 +206,11 @@ class DataCleaner:
         return recipe_time_column
 
 
-def save_ingredients(df: pd.DataFrame) -> pd.DataFrame:
+def save_ingredients(recipes: pd.DataFrame) -> pd.DataFrame:
     table_name = table("ingredients")
     unique_ingredients_count = {}
     ingredients_entries = []
-    for idx, row in df.iterrows():
+    for idx, row in recipes.iterrows():
         for ingredient in row["ingredients"]:
             name = ingredient["name"]
             unique_ingredients_count[name] = unique_ingredients_count.get(name, 0) + 1
@@ -219,18 +219,16 @@ def save_ingredients(df: pd.DataFrame) -> pd.DataFrame:
     }
     for name, count in unique_ingredients_count.items():
         log.debug(f"{count}: {name}")
-        ingredients_entries.append({"name": name})
-    ingredients_df = pd.DataFrame(ingredients_entries)
-    old_ingredients_df = pd.read_sql_table(table_name, con=engine)
-    merged_ingredients_df = pd.merge(ingredients_df, old_ingredients_df[["name", "category"]], on="name", how="left")
-    merged_ingredients_df.to_sql(table_name, con=engine, if_exists="replace")
+        ingredients_entries.append({"name": name, "count": count})
+    ingredients = pd.DataFrame(ingredients_entries)
+    ingredients.to_sql(table_name, con=engine, if_exists="replace", index=False)
 
 
 if __name__ == "__main__":
     raw_recipes = pd.read_sql_table(RAW_RECIPES_TABLE, con=engine)
     cleaned_recipes = DataCleaner().clean_recipes_data(raw_recipes)
-    old_cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
-    cleaned_recipes = pd.merge(cleaned_recipes, old_cleaned_recipes, on=["id"], how="left")
+    # old_cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
+    # cleaned_recipes = pd.merge(cleaned_recipes, old_cleaned_recipes, on=["id"], how="left")
     cleaned_recipes.to_sql(
         CLEANED_RECIPES_TABLE,
         con=engine,
@@ -238,3 +236,4 @@ if __name__ == "__main__":
         index=False,
         dtype={"ingredients": JSON, "instructions": JSON, "instruction_images": JSON},
     )
+    save_ingredients(cleaned_recipes)

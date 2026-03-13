@@ -1,14 +1,13 @@
 from threading import Thread
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
+
 import json
-import pickle
-import traceback
 from pandas import DataFrame
-from time import sleep
 import os
 from logging import getLogger
+
+from web.driver import create_driver
 
 debug_url = "https://www.supermarktcheck.de/product/209354-milram-milch-reis"
 
@@ -20,8 +19,6 @@ class SupermarketScraper:
     def __init__(self):
         self.threads = []
         self.threaded_results = {}
-        with open("data/supermarkets/cookies.pkl", "rb") as file:
-            self.cookies = pickle.load(file)
 
     def get_all_product_links(self, supermarket: str):
         data_dir = f"data/supermarkets/{supermarket}"
@@ -29,7 +26,7 @@ class SupermarketScraper:
 
         url = f"https://www.supermarktcheck.de/{supermarket}/sortiment/?page="
         list_elements_selector = ".productListElement"
-        driver = webdriver.Chrome()
+        driver = create_driver()
         product_links = []
         for i in range(1, 2999):
             self.log.debug(f"Scraping page {i}")
@@ -47,20 +44,8 @@ class SupermarketScraper:
             json.dump(product_links, file)
         return product_links
 
-    def get_webdriver(self, use_cookies=True):
-        options = Options()
-        options.add_argument("--headless")  # Run in headless mode
-        driver = webdriver.Chrome(options=options)
-        if use_cookies:
-            driver.get("https://www.supermarktcheck.de/")
-            for cookie in self.cookies:
-                driver.add_cookie(cookie)
-            driver.refresh()
-        return driver
-
     def scrape_product(self, url: str, driver: webdriver.Chrome):
         driver.get(url)
-        # sleep(2)
         data_selectors = {
             "title": "h1",
             "producer": "#uebersicht dl > dd",
@@ -99,13 +84,10 @@ class SupermarketScraper:
         else:
             product_links = json.load(open(f"{data_dir}/product_links.json"))
 
-        # DEBUG
-        # product_links = product_links[:self.num_threads * 10]
-
         all_product_results = []
         self.log.info(f"Scraping {len(product_links)} products")
         for idx in range(self.num_threads):
-            thread_webdriver = self.get_webdriver()
+            thread_webdriver = create_driver(headless=True)
             thread = Thread(
                 target=self.scrape_products_threaded,
                 args=(product_links[idx :: self.num_threads], thread_webdriver, idx),
@@ -119,6 +101,7 @@ class SupermarketScraper:
             all_product_results.extend(self.threaded_results[idx])
         product_data = DataFrame(all_product_results)
         product_data.to_csv(f"{data_dir}/product_data.csv", index=False)
+        return product_data
 
 
 if __name__ == "__main__":
