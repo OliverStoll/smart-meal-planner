@@ -1,6 +1,4 @@
-from logging import getLogger
 from time import sleep
-
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -134,5 +132,5 @@ class HelloFreshLinkCrawler:
 
 if __name__ == "__main__":
     crawler = HelloFreshLinkCrawler()
-    recipe_links = crawler.get_all_recipe_links()
+    recipe_links = crawler.assure_recipe_links(use_stored=False, save_to_db=True)
     print(recipe_links)
