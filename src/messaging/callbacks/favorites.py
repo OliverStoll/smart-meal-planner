@@ -1,6 +1,5 @@
 from common_utils.config import secret
 from common_utils.logger import create_logger
-from common_utils.apis.firebase import FirebaseClient
 
 from database.nosql import nosql_client
 
