@@ -1,10 +1,7 @@
 import telebot
 from os import getenv
-import os
-import json
 from dotenv import load_dotenv
 import time
-import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
 from common_utils.logger import create_logger
 
@@ -20,11 +17,11 @@ class TelegramBot:
     recipes = RecipeManager()
     restart_time = 10
     intro_response = (
-        f"**🥦 Willkommen beim Kochideen-Bot!**\n\n"
-        f"Hier kannst du dir mehrere Rezepte für die Woche, mit einer übersichtlichen Einkaufsliste zusenden lassen. \n\n"
-        f"Um loszulegen, passe mit /einstellungen deine Präferenzen an, lasse dir mit /gerichte eine beliebige Anzahl"
-        f" an Rezepten zusenden, oder melde dich mit /woechentlich für eine wöchentliche Rezeptliste an.\n\n"
-        f"Viel Spaß beim Kochen! 🍳🍝"
+        "**🥦 Willkommen beim Kochideen-Bot!**\n\n"
+        "Hier kannst du dir mehrere Rezepte für die Woche, mit einer übersichtlichen Einkaufsliste zusenden lassen.\n\n"
+        "Um loszulegen, passe mit /einstellungen deine Präferenzen an, lasse dir mit /gerichte eine beliebige Anzahl"
+        " an Rezepten zusenden, oder melde dich mit /woechentlich für eine wöchentliche Rezeptliste an.\n\n"
+        "Viel Spaß beim Kochen! 🍳🍝"
     )
     settings_keyboard = InlineKeyboardMarkup()
     settings_keyboard.row(
@@ -110,7 +107,7 @@ class TelegramBot:
             favorite_ids = self.favorites_handler.get_favorites(chat_id=message.chat.id)
             num_favorites = len(favorite_ids)
             num_options = min(6, num_favorites)
-            response = f"⭐️ Wie viele favorisierte Rezepte möchtest du?"
+            response = "⭐️ Wie viele favorisierte Rezepte möchtest du?"
             keyboard = _get_enumerated_keyboard(callback_prefix="fav_gerichte", start_idx=1, end_idx=num_options)
             self.bot.send_message(chat_id=message.chat.id, text=response, reply_markup=keyboard)
 

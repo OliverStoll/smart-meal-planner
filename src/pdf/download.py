@@ -33,11 +33,11 @@ class PdfManager:
 
     def download_single_pdf(self, pdf_url: str, save_path: str) -> None:
         response = requests.get(pdf_url)
-        assert response.status_code == 200, f"Error in downloading pdf: {response.status_code}"
+        assert response.status_code == 200, "Error in downloading pdf: {response.status_code}"
         assert (
             response.headers["Content-Type"] == "application/pdf"
         ), f"Error in downloading pdf: {response.headers['Content-Type']}"
-        assert len(response.content) > 1000, f"Error in downloading pdf: File is empty"
+        assert len(response.content) > 1000, "Error in downloading pdf: File is empty"
         with open(save_path, "wb") as f:
             f.write(response.content)
 

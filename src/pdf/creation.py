@@ -1,12 +1,10 @@
 from io import BytesIO
 import requests
 import pandas as pd
-import os
 import re
 import ast
 import fitz
 from PIL import Image
-from common_utils.config import ROOT_DIR
 from common_utils.logger import create_logger
 
 from data_ingestion import CLEANED_RECIPES_TABLE

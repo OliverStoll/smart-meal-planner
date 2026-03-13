@@ -115,7 +115,8 @@ class DataCleaner:
         Split all ingredients that are paired with a '/' into two separate entries.
 
         Args:
-            ingredients_entries: A list of ingredient entries, each entry is a dictionary with 'name', 'quantity', and 'unit'.
+            ingredients_entries: A list of ingredient entries, each entry is a dictionary with
+             'name', 'quantity', and 'unit'.
 
         Returns:
             A list of ingredient entries with 'name', 'quantity', and 'unit' keys, where all ingredients are split.
@@ -150,7 +151,7 @@ class DataCleaner:
                     return int(int(calories_str[:-3]) * KJ_TO_KCAL)
                 else:
                     return int(calories_str)
-            except:
+            except Exception:
                 return None
 
         recipes["calories"] = recipes["calories"].apply(lambda x: convert_calories(x) if isinstance(x, str) else x)

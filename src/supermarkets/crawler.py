@@ -59,7 +59,7 @@ class SupermarketScraper:
                 data = driver.find_element(By.CSS_SELECTOR, data_selectors[selector])
                 text = data.text
                 results[selector] = text
-            except:
+            except Exception:
                 results[selector] = None
         return results
 

@@ -1,7 +1,6 @@
 import pandas as pd
 from typing import Literal
 from common_utils.logger import create_logger
-from common_utils.config import ROOT_DIR
 
 from data_ingestion import CLEANED_RECIPES_TABLE, INGREDIENTS_TABLE
 from database.engine import engine

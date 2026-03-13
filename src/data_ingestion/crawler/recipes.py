@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from threading import Thread
 from time import sleep
-from selenium import webdriver
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.ie.webdriver import WebDriver
@@ -169,7 +168,7 @@ class HelloFreshRecipeCrawler:
             element.find_element(By.CSS_SELECTOR, button_selector).click()
             sleep(0.3)
         except NoSuchElementException:
-            self.log.warning(f"Meals: 2 button not found")
+            self.log.warning("Meals: 2 button not found")
         selector = 'div[data-test-id="ingredient-item-shipped"]'
         ingredient_items = element.find_elements(By.CSS_SELECTOR, selector)
         for ingredient_item in ingredient_items:

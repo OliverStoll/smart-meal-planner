@@ -5,8 +5,7 @@ from common_utils.logger import create_logger
 from PIL import Image
 from io import BytesIO
 
-from src.messaging.callbacks.settings_types import UserSettings
-from src.messaging.callbacks.favorites import FavoritesHandler
+from messaging.callbacks.settings_types import UserSettings
 
 
 class MessageHandler:

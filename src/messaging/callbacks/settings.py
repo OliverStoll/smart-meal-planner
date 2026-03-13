@@ -1,7 +1,4 @@
-import json
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as InlineButton
-from telebot import types
-
 from common_utils.apis.firebase import FirebaseClient
 from common_utils.config import secret
 
@@ -83,7 +80,6 @@ class SettingsHandler:
 
         Args:
             call_data (str): The data from the callback query.
-            message (types.Message): The original message object used to edit the message and access user data.
             chat_id (int): The chat ID of the user.
 
         Returns:
