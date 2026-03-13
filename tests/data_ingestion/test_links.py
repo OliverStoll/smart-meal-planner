@@ -1,8 +1,5 @@
-from io import StringIO
 from unittest.mock import patch
-import pytest
 import pandas as pd
-from selenium import webdriver
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from web.driver import create_driver

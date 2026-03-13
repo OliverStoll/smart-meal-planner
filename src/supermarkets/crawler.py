@@ -88,9 +88,10 @@ class SupermarketScraper:
         self.log.info(f"Scraping {len(product_links)} products")
         for idx in range(self.num_threads):
             thread_webdriver = create_driver(headless=True)
+            links_chunk = product_links[idx :: self.num_threads]  # noqa: E203
             thread = Thread(
                 target=self.scrape_products_threaded,
-                args=(product_links[idx :: self.num_threads], thread_webdriver, idx),
+                args=(links_chunk, thread_webdriver, idx),
             )
             self.threads.append(thread)
             thread.start()

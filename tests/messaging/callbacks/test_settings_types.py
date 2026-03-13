@@ -1,4 +1,3 @@
-import pytest
 from messaging.callbacks.settings_types import UserSettings, SettingsProperties
 
 

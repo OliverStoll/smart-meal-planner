@@ -1,10 +1,7 @@
 import pytest
 import pandas as pd
-from io import StringIO
-from unittest.mock import patch
 
 from supermarkets.cleaning import clean_sellers, SUPERMARKET_FRIENDLY_NAMES
-
 
 SAMPLE_CSV = """title,sellers
 Milch,"ist bei Rewe und Lidl erhältlich"

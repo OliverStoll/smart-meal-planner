@@ -1,4 +1,3 @@
-import pytest
 import pandas as pd
 
 from data_ingestion.cleaning import DataCleaner
@@ -9,38 +8,46 @@ class TestRemoveDuplicateRecipes:
         self.cleaner = DataCleaner()
 
     def test_removes_duplicate_ids(self):
-        df = pd.DataFrame({
-            "id": ["1", "1", "2"],
-            "link": ["a", "b", "c"],
-            "title": ["T1", "T2", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["1", "1", "2"],
+                "link": ["a", "b", "c"],
+                "title": ["T1", "T2", "T3"],
+            }
+        )
         result = self.cleaner.remove_duplicate_recipes(df)
         assert len(result) == 2
 
     def test_removes_duplicate_links(self):
-        df = pd.DataFrame({
-            "id": ["1", "2", "3"],
-            "link": ["a", "a", "c"],
-            "title": ["T1", "T2", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["1", "2", "3"],
+                "link": ["a", "a", "c"],
+                "title": ["T1", "T2", "T3"],
+            }
+        )
         result = self.cleaner.remove_duplicate_recipes(df)
         assert len(result) == 2
 
     def test_removes_duplicate_titles(self):
-        df = pd.DataFrame({
-            "id": ["1", "2", "3"],
-            "link": ["a", "b", "c"],
-            "title": ["T1", "T1", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["1", "2", "3"],
+                "link": ["a", "b", "c"],
+                "title": ["T1", "T1", "T3"],
+            }
+        )
         result = self.cleaner.remove_duplicate_recipes(df)
         assert len(result) == 2
 
     def test_keeps_unique_recipes(self):
-        df = pd.DataFrame({
-            "id": ["1", "2", "3"],
-            "link": ["a", "b", "c"],
-            "title": ["T1", "T2", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "id": ["1", "2", "3"],
+                "link": ["a", "b", "c"],
+                "title": ["T1", "T2", "T3"],
+            }
+        )
         result = self.cleaner.remove_duplicate_recipes(df)
         assert len(result) == 3
 
@@ -50,38 +57,46 @@ class TestRemoveRecipesWithMissingData:
         self.cleaner = DataCleaner()
 
     def test_removes_rows_with_null_ingredients(self):
-        df = pd.DataFrame({
-            "ingredients": ["[a]", None, "[b]"],
-            "instructions": ["[i]", "[j]", "[k]"],
-            "title": ["T1", "T2", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "ingredients": ["[a]", None, "[b]"],
+                "instructions": ["[i]", "[j]", "[k]"],
+                "title": ["T1", "T2", "T3"],
+            }
+        )
         result = self.cleaner.remove_recipes_with_missing_data(df)
         assert len(result) == 2
 
     def test_removes_rows_with_null_instructions(self):
-        df = pd.DataFrame({
-            "ingredients": ["[a]", "[b]", "[c]"],
-            "instructions": [None, "[j]", "[k]"],
-            "title": ["T1", "T2", "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "ingredients": ["[a]", "[b]", "[c]"],
+                "instructions": [None, "[j]", "[k]"],
+                "title": ["T1", "T2", "T3"],
+            }
+        )
         result = self.cleaner.remove_recipes_with_missing_data(df)
         assert len(result) == 2
 
     def test_removes_rows_with_null_title(self):
-        df = pd.DataFrame({
-            "ingredients": ["[a]", "[b]", "[c]"],
-            "instructions": ["[i]", "[j]", "[k]"],
-            "title": ["T1", None, "T3"],
-        })
+        df = pd.DataFrame(
+            {
+                "ingredients": ["[a]", "[b]", "[c]"],
+                "instructions": ["[i]", "[j]", "[k]"],
+                "title": ["T1", None, "T3"],
+            }
+        )
         result = self.cleaner.remove_recipes_with_missing_data(df)
         assert len(result) == 2
 
     def test_keeps_all_rows_when_no_missing_data(self):
-        df = pd.DataFrame({
-            "ingredients": ["[a]", "[b]"],
-            "instructions": ["[i]", "[j]"],
-            "title": ["T1", "T2"],
-        })
+        df = pd.DataFrame(
+            {
+                "ingredients": ["[a]", "[b]"],
+                "instructions": ["[i]", "[j]"],
+                "title": ["T1", "T2"],
+            }
+        )
         result = self.cleaner.remove_recipes_with_missing_data(df)
         assert len(result) == 2
 
