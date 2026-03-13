@@ -12,16 +12,16 @@ from src.messaging.callbacks.favorites import FavoritesHandler
 class MessageHandler:
     log = create_logger("Message Handler")
     title_emoji = {
-        'alle': '🍲',
-        'vegetarisch': '🥦',
-        'vegan': '🌱',
-        'protein': '🍗',
+        "alle": "🍲",
+        "vegetarisch": "🥦",
+        "vegan": "🌱",
+        "protein": "🍗",
     }
     meal_types = {
-        'alle': '',
-        'vegetarisch': 'vegetarische ',
-        'vegan': 'vegane ',
-        'protein': 'proteinreiche ',
+        "alle": "",
+        "vegetarisch": "vegetarische ",
+        "vegan": "vegane ",
+        "protein": "proteinreiche ",
     }
 
     def __init__(self, settings_handler, favorites_handler, recipe_handler, bot):
@@ -34,12 +34,12 @@ class MessageHandler:
         self.pdf_handler = PdfMessageHandler(bot=bot, recipes=self.recipe_handler.raw_recipes)
 
     def send_full_recipes_message(
-            self,
-            chat_id: int,
-            num_meals: int | None = None,
-            previous_shopping_list_message_id: int | None = None,
-            recipes_to_send: pd.DataFrame | None = None,
-            recipe_idx_to_replace: int | None = None,
+        self,
+        chat_id: int,
+        num_meals: int | None = None,
+        previous_shopping_list_message_id: int | None = None,
+        recipes_to_send: pd.DataFrame | None = None,
+        recipe_idx_to_replace: int | None = None,
     ):
         """
         Sends the meal recipes and shopping list to the user.
@@ -67,11 +67,11 @@ class MessageHandler:
                 num_recipes=num_meals,
                 user_settings=user_settings,
             )
-        recipe_ids = recipes_to_send['id'].tolist()
+        recipe_ids = recipes_to_send["id"].tolist()
         self.last_sent_recipes_df[str(chat_id)] = recipes_to_send
 
         shopping_list_ingredients = self.recipe_handler.get_ingredients_shopping_list(
-            recipes_df=recipes_to_send, num_portions=user_settings.portions
+            recipes=recipes_to_send, num_portions=user_settings.portions
         )
         shopping_list_message = self.send_shopping_list_message(
             chat_id=chat_id,
@@ -102,11 +102,11 @@ class MessageHandler:
             )
 
     def resend_messages_to_replace_meal(
-            self,
-            message_id: int,
-            chat_id: int,
-            related_shopping_list_message_id: int,
-            recipe_id: str,
+        self,
+        message_id: int,
+        chat_id: int,
+        related_shopping_list_message_id: int,
+        recipe_id: str,
     ):
         last_sent_recipes: pd.DataFrame | None = self.last_sent_recipes_df.get(str(chat_id), None)
 
@@ -130,28 +130,25 @@ class MessageHandler:
         )
 
     def replace_single_recipe_in_data(
-            self,
-            last_sent_recipes: pd.DataFrame,
-            chat_id: int,
-            recipe_id: str,
+        self,
+        last_sent_recipes: pd.DataFrame,
+        chat_id: int,
+        recipe_id: str,
     ) -> tuple[pd.DataFrame, int]:
         user_settings = self.settings_handler.get_user_settings(chat_id)
-        new_recipe = self.recipe_handler.sample_fitting_recipes(
-            num_recipes=1,
-            user_settings=user_settings
-        )
+        new_recipe = self.recipe_handler.sample_fitting_recipes(num_recipes=1, user_settings=user_settings)
         # find the recipe idx to replace
-        idx_to_replace = last_sent_recipes.index[last_sent_recipes['id'] == recipe_id].tolist()[0]
+        idx_to_replace = last_sent_recipes.index[last_sent_recipes["id"] == recipe_id].tolist()[0]
         last_sent_recipes.loc[idx_to_replace] = new_recipe.iloc[0]
         return last_sent_recipes, idx_to_replace
 
     def send_shopping_list_message(
-            self,
-            chat_id: int,
-            num_meals: int,
-            shopping_list_ingredients: str,
-            user_settings: UserSettings,
-            replace_message_id: int | None,
+        self,
+        chat_id: int,
+        num_meals: int,
+        shopping_list_ingredients: str,
+        user_settings: UserSettings,
+        replace_message_id: int | None,
     ) -> types.Message:
         """
         Sends a message with the combined shopping list for the selected recipes.
@@ -167,9 +164,9 @@ class MessageHandler:
         shopping_list_title = self._get_shopping_list_title(num_meals, user_settings.meal_type, user_settings.portions)
         shopping_list_message = f"{shopping_list_title}\n```\n{shopping_list_ingredients}```"
         shopping_list_message_args = {
-            'text': shopping_list_message,
-            'chat_id': chat_id,
-            'parse_mode': 'Markdown',
+            "text": shopping_list_message,
+            "chat_id": chat_id,
+            "parse_mode": "Markdown",
         }
         if replace_message_id:
             sent_message = self.bot.edit_message_text(message_id=replace_message_id, **shopping_list_message_args)
@@ -181,8 +178,8 @@ class MessageHandler:
         """
         Generate the title response for the meal message.
         """
-        emoji = self.title_emoji.get(meal_type, '🍲')
-        friendly_meal_type = self.meal_types.get(meal_type, '')
+        emoji = self.title_emoji.get(meal_type, "🍲")
+        friendly_meal_type = self.meal_types.get(meal_type, "")
         title_response = (
             f"**{emoji} Hier sind die Zutaten für {num_meals} {friendly_meal_type}Gerichte á {portions} Portionen:**"
         )
@@ -191,8 +188,8 @@ class MessageHandler:
 
 class PdfMessageHandler:
     log = create_logger("PDF Message Handler")
-    thumbnail_dir = 'data/temp_thumbs'
-    recipe_pdf_dir = 'data/temp_pdfs'
+    thumbnail_dir = "data/temp_thumbs"
+    recipe_pdf_dir = "data/temp_pdfs"
     pdf_id_to_title_mapping = {}
 
     def __init__(self, bot: TeleBot, recipes: pd.DataFrame):
@@ -201,12 +198,12 @@ class PdfMessageHandler:
         self.pdf_id_to_title_mapping = self._get_pdf_id_to_title_mapping(recipes)
 
     def send_multiple_recipe_pdfs(
-            self,
-            chat_id: int,
-            recipe_ids: list[int],
-            num_portions: int,
-            shopping_list_message_id: int | None = None,
-            favorites_ids: list[str] | None = None,
+        self,
+        chat_id: int,
+        recipe_ids: list[int],
+        num_portions: int,
+        shopping_list_message_id: int | None = None,
+        favorites_ids: list[str] | None = None,
     ) -> list[int]:
         """
         Send all recipe PDFs to the user.
@@ -237,12 +234,12 @@ class PdfMessageHandler:
         return pdf_message_ids
 
     def send_single_recipe_pdf(
-            self,
-            chat_id: int,
-            recipe_id: int,
-            num_portions: int,
-            shopping_list_message_id: int | None = None,
-            is_favorite: bool = False,
+        self,
+        chat_id: int,
+        recipe_id: int,
+        num_portions: int,
+        shopping_list_message_id: int | None = None,
+        is_favorite: bool = False,
     ) -> int:
         """
         Send a single recipe PDF to the user.
@@ -260,12 +257,13 @@ class PdfMessageHandler:
         thumbnail_file = self._get_thumbnail_file(recipe_id=recipe_id)
         recipe_pdf_path = self._get_pdf_path(recipe_id=recipe_id, num_portions=num_portions)
         keyboard = self._create_pdf_inline_keyboard(
-            shopping_list_message_id=shopping_list_message_id, recipe_id=recipe_id, is_favorite=is_favorite,
+            shopping_list_message_id=shopping_list_message_id,
+            recipe_id=recipe_id,
+            is_favorite=is_favorite,
         )
 
-
         try:
-            with open(recipe_pdf_path, 'rb') as recipe_pdf_file:
+            with open(recipe_pdf_path, "rb") as recipe_pdf_file:
                 message = self.bot.send_document(
                     chat_id=chat_id,
                     document=recipe_pdf_file,
@@ -289,7 +287,7 @@ class PdfMessageHandler:
             thumbnail_file: The thumbnail file as a BytesIO object.
         """
         pdf_title = self.pdf_id_to_title_mapping.get(recipe_id, None)
-        thumbnail_path = f'{self.thumbnail_dir}/{pdf_title}.jpg'
+        thumbnail_path = f"{self.thumbnail_dir}/{pdf_title}.jpg"
         if not pdf_title:
             self.log.warning(f"Thumbnail not found for recipe ID {recipe_id}")
             return None
@@ -297,7 +295,7 @@ class PdfMessageHandler:
             img = Image.open(thumbnail_path)
             bytes_io = BytesIO()
             bytes_io.name = f"{pdf_title}.jpg"
-            img.save(bytes_io, format='JPEG')
+            img.save(bytes_io, format="JPEG")
             bytes_io.seek(0)
             return bytes_io
         except FileNotFoundError:
@@ -306,19 +304,18 @@ class PdfMessageHandler:
 
     @staticmethod
     def _create_pdf_inline_keyboard(
-            shopping_list_message_id: int | None,
-            recipe_id: int,
-            is_favorite: bool = False,
+        shopping_list_message_id: int | None,
+        recipe_id: int,
+        is_favorite: bool = False,
     ) -> InlineKeyboardMarkup:
         keyboard = InlineKeyboardMarkup()
         replace_button = InlineButton(
-            text='🔄 Austauschen',
-            callback_data=f'replace|{shopping_list_message_id}|{recipe_id}'
+            text="🔄 Austauschen", callback_data=f"replace|{shopping_list_message_id}|{recipe_id}"
         )
 
         favorite_button = InlineButton(
-            text='⭐️ Speichern' if not is_favorite else '❌ Unfavorisieren',
-            callback_data=f'favorite|{recipe_id}' if not is_favorite else f'unfavorite|{recipe_id}',
+            text="⭐️ Speichern" if not is_favorite else "❌ Unfavorisieren",
+            callback_data=f"favorite|{recipe_id}" if not is_favorite else f"unfavorite|{recipe_id}",
         )
         keyboard.row(replace_button, favorite_button)
 
@@ -340,7 +337,7 @@ class PdfMessageHandler:
             self.log.warning(f"PDF not found for recipe ID {recipe_id}")
             return None
 
-        pdf_path = f'{self.recipe_pdf_dir}/{num_portions}/{pdf_title}.pdf'
+        pdf_path = f"{self.recipe_pdf_dir}/{num_portions}/{pdf_title}.pdf"
         return pdf_path
 
     @staticmethod
@@ -350,7 +347,5 @@ class PdfMessageHandler:
         """
         pdf_id_to_title_mapping = {}
         for idx, recipe in recipes.iterrows():
-            pdf_id_to_title_mapping[recipe['id']] = recipe['title']
+            pdf_id_to_title_mapping[recipe["id"]] = recipe["title"]
         return pdf_id_to_title_mapping
-
-
