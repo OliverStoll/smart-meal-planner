@@ -2,13 +2,16 @@ import ast
 import pandas as pd
 import re
 import logging
+from sqlalchemy.types import JSON
 
-from . import (
+from data_ingestion import (
     REPLACE_INGREDIENTS_STRINGS,
     REPLACE_TITLE_STRINGS,
     REPLACE_INSTRUCTIONS_STRINGS,
     REPLACE_INSTRUCTION_PATTERNS,
     KJ_TO_KCAL,
+    RAW_RECIPES_TABLE,
+    CLEANED_RECIPES_TABLE,
 )
 from database.engine import engine, table
 
@@ -141,11 +144,14 @@ class DataCleaner:
 
     @staticmethod
     def clean_calories_column(recipes: pd.DataFrame) -> pd.DataFrame:
-        def convert_calories(calories_str: str) -> int:
-            if "kJ" in calories_str:
-                return int(int(calories_str[:-3]) * KJ_TO_KCAL)
-            else:
-                return int(calories_str)
+        def convert_calories(calories_str: str) -> int | None:
+            try:
+                if "kJ" in calories_str:
+                    return int(int(calories_str[:-3]) * KJ_TO_KCAL)
+                else:
+                    return int(calories_str)
+            except:
+                return None
 
         recipes["calories"] = recipes["calories"].apply(lambda x: convert_calories(x) if isinstance(x, str) else x)
         return recipes
@@ -221,8 +227,14 @@ def save_ingredients(df: pd.DataFrame) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    raw_recipes = pd.read_sql_table(table("raw_recipes"), con=engine)
+    raw_recipes = pd.read_sql_table(RAW_RECIPES_TABLE, con=engine)
     cleaned_recipes = DataCleaner().clean_recipes_data(raw_recipes)
-    old_cleaned_recipes = pd.read_sql_table(table("cleaned_recipes"), con=engine)
-    merged_cleaned_recipes = pd.merge(cleaned_recipes, old_cleaned_recipes, on=["id"], how="left")
-    merged_cleaned_recipes.to_sql(table("cleaned_recipes"), con=engine, if_exists="replace", index=False)
+    old_cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
+    cleaned_recipes = pd.merge(cleaned_recipes, old_cleaned_recipes, on=["id"], how="left")
+    cleaned_recipes.to_sql(
+        CLEANED_RECIPES_TABLE,
+        con=engine,
+        if_exists="replace",
+        index=False,
+        dtype={"ingredients": JSON, "instructions": JSON, "instruction_images": JSON},
+    )
