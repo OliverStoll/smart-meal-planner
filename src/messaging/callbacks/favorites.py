@@ -2,12 +2,14 @@ from common_utils.config import secret
 from common_utils.logger import create_logger
 from common_utils.apis.firebase import FirebaseClient
 
+from database.nosql import nosql_client
+
 
 class FavoritesHandler:
     log = create_logger("Favorites Handler")
     favorites_path = "data/favorites.json"
     favorites_ref = "AppData/Telegram Meal Bot/Favorites"
-    firebase_client = FirebaseClient(realtime_db_url=secret("FIREBASE_REALTIME_DB_URL"))
+    firebase_client = nosql_client(realtime_db_url=secret("FIREBASE_REALTIME_DB_URL"))
 
     def favorize_recipe(self, chat_id: int, recipe_id: str):
         """
