@@ -17,3 +17,4 @@ openai~=2.26.0
 scikit-learn~=1.8.0
 pymupdf-fonts~=1.0.5
 boto3~=1.42
+pre-commit~=4.5.1
