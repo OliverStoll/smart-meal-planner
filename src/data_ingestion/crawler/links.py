@@ -5,13 +5,15 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
+from common_utils.logger import create_logger
+
 from config.settings import RECIPE_URL
 from data_ingestion.utils import scroll_driver_down
 from database.engine import table, engine
 
 
 class HelloFreshLinkCrawler:
-    log = getLogger("HelloFreshLinkCrawler")
+    log = create_logger("HelloFreshLinkCrawler")
 
     def assure_recipe_links(self, use_stored: bool, save_to_db: bool = False) -> pd.DataFrame:
         if use_stored:
@@ -33,10 +35,7 @@ class HelloFreshLinkCrawler:
 
     def get_all_recipe_links(self) -> pd.DataFrame:
         """
-        Scrape all individual recipe links from all categories, and filter out duplicates.
-
-        Args:
-            category_paths: List of category link paths to scrape.
+        Scrape all individual recipe links from all categories and filter out duplicates.
 
         Returns:
             List of recipe data dictionaries containing recipe links and category paths.
@@ -86,7 +85,7 @@ class HelloFreshLinkCrawler:
         """
         Clean and extract category paths from the list of category links.
 
-        Filters out non-relevant links that contain no recipe IDs (e.g. 65d4898f6c4f22398987607a)
+        Filters out non-relevant links that contain no recipe IDs (e.g., 65d4898f6c4f22398987607a)
          or are not from the base link.
 
         Args:
