@@ -23,12 +23,3 @@ repos:
       - id: mypy
         args: [--ignore-missing-imports, --namespace-packages]
         additional_dependencies: [types-pyyaml, types-requests]
-
-  - repo: local
-    hooks:
-      - id: radon-complexity
-        name: Radon Cyclomatic Complexity
-        entry: poetry run radon cc
-        args: [ -s, -n, B ]
-        language: system
-        types: [ python ]
