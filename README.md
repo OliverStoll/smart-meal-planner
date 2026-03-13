@@ -2,7 +2,9 @@
 
 A Telegram bot that helps you plan your weekly meals, generate shopping lists, and discover personalised recipe recommendations powered by HelloFresh data and OpenAI embeddings.
 
-![Python](https://img.shields.io/badge/python-3.11-blue)
+![Tests](https://github.com/oliverstoll/smart-meal-planner/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.10--3.13-blue)
+![Coverage](https://codecov.io/gh/oliverstoll/smart-meal-planner/branch/main/graph/badge.svg)
 
 ---
 
