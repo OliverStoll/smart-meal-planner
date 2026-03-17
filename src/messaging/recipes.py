@@ -23,18 +23,18 @@ def sample_recipes(
     """
     if recipes is None:
         recipes = filtered_recipes(user_settings=user_settings)
-    if num_recipes < len(recipes):
+    if recipes and num_recipes < len(recipes):
         recipes = recipes.sample(num_recipes)
-    recipes.reset_index(drop=True, inplace=True)
+        recipes.reset_index(drop=True, inplace=True)
     return recipes
 
 
-def num_of_filtered_recipes(
+def num_filtered_recipes(
     user_settings: UserSettings, recipes: pd.DataFrame | None = None
 ) -> int:
     """Filter the recipes based on user settings and returns the number of selected recipes."""
     recipes_df = filtered_recipes(user_settings=user_settings, recipes=recipes)
-    return len(recipes_df)
+    return len(recipes_df) if recipes_df else 0
 
 
 def filtered_recipes(
@@ -53,7 +53,7 @@ def filtered_recipes(
     if recipes is None:
         recipes = recipes_from_sql()
     # recipes = recipes[recipes["total_time"] <= user_settings.max_duration]  # TODO
-    recipes = recipes[recipes["calories"] >= user_settings.cal_min]
+    # recipes = recipes[recipes["calories"] >= user_settings.cal_min]
     recipes = filter_recipes_by_meal_type(
         recipes=recipes, meal_type=user_settings.meal_type
     )

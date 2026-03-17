@@ -1,7 +1,43 @@
+import pytest
+
 from supermarkets.crawler import SupermarketScraper
+from web.driver import create_driver
 
 
+@pytest.fixture
+def supermarket_product_url():
+    return "https://www.supermarktcheck.de/product/209354-milram-milch-reis"
+
+
+@pytest.mark.slow
 def test_scrape_all_products():
     crawler = SupermarketScraper()
     results = crawler.scrape_all_products(supermarket="Lidl")
     print(results)
+
+
+@pytest.mark.slow
+def test_get_all_product_links():
+    crawler = SupermarketScraper()
+    links = crawler.get_all_product_links(supermarket="Lidl")
+    print(links)  # TODO
+
+
+@pytest.mark.slow
+def test_scrape_product(supermarket_product_url):
+    driver = create_driver()
+    crawler = SupermarketScraper()
+    data = crawler.scrape_product(url=supermarket_product_url, driver=driver)
+    print(data)  # TODO
+    driver.close()
+
+
+@pytest.mark.slow
+def test_scrape_product_threaded(supermarket_product_url):
+    driver = create_driver()
+    crawler = SupermarketScraper()
+    data = crawler.scrape_products_threaded(
+        product_links=[supermarket_product_url], driver=driver, thread_id=1
+    )
+    print(data)  # TODO
+    driver.close()

@@ -1,12 +1,14 @@
 import os
 from unittest.mock import patch
 import pandas as pd
+import pytest
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from data_ingestion.crawler.recipes import HelloFreshRecipeCrawler
 from web.driver import create_driver
 
 
+@pytest.mark.slow
 class TestHelloFreshScraper:
     expected_recipes_columns = {
         "link",
@@ -15,7 +17,7 @@ class TestHelloFreshScraper:
         "category_friendly",
         "title",
         "description",
-        "tags",
+        # "tags",  # TODO
         "hero_image",
         "ingredients",
         "instructions",

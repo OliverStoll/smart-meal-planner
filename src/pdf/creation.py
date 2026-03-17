@@ -9,6 +9,7 @@ from common_utils.logger import create_logger
 import messaging.ingredients
 from database import CLEANED_RECIPES_REF
 from database.engine import df_from_sql
+from database.ref import pdf_ref
 from database.storage import upload_file
 from messaging.utils import get_pdf_title_from_meal_name
 
@@ -54,7 +55,7 @@ class PdfCreator:
         pdf.save(buffer)
         pdf.close()
         buffer.seek(0)
-        ref = f"pdfs/{num_meals}/{title.replace("_", " ")}.pdf"
+        ref = pdf_ref(title=title, num_portions=num_meals)
         upload_file(buffer, ref=ref)
         self.log.debug(f"Uploaded pdf for {ref}")
         return

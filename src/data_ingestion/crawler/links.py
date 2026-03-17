@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 
 from common_utils.logger import create_logger
 
-from config.settings import RECIPE_URL
+from settings import RECIPE_URL
 from data_ingestion.utils import scroll_driver_down
 from database.engine import df_from_sql, df_to_sql
 from web.driver import create_driver

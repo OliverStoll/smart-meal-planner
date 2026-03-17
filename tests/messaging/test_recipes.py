@@ -3,7 +3,7 @@ import pytest
 from messaging.callbacks.settings_types import UserSettings
 from messaging.recipes import (
     filtered_recipes,
-    num_of_filtered_recipes,
+    num_filtered_recipes,
     sample_recipes,
     recipe_titles_by_id,
 )
@@ -22,7 +22,7 @@ def test_filtered_recipes(user_settings, cleaned_recipes):
 
 
 def test_num_of_filtered_recipes(user_settings, cleaned_recipes):
-    assert len(cleaned_recipes) == num_of_filtered_recipes(
+    assert len(cleaned_recipes) == num_filtered_recipes(
         user_settings=user_settings, recipes=cleaned_recipes
     )
 

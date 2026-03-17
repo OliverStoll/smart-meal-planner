@@ -33,7 +33,7 @@ class HelloFreshRecipeCrawler:
             },
             "tags": {
                 "selector": 'div[data-test-id="recipe-description"] > div:nth-child(5)',
-                "postprocessing_fn": self._process_tags(),
+                "postprocessing_fn": self._process_tags,
             },
             "hero_image": {
                 "selector": 'div[data-test-id="recipe-hero-image"] img',
@@ -189,13 +189,19 @@ class HelloFreshRecipeCrawler:
         try:
             element.find_element(By.CSS_SELECTOR, button_selector).click()
             sleep(0.3)
-        except NoSuchElementException:
+        except Exception:
             self.log.warning("Meals: 2 button not found")
         selector = 'div[data-test-id="ingredient-item-shipped"]'
         ingredient_items = element.find_elements(By.CSS_SELECTOR, selector)
         for ingredient_item in ingredient_items:
             ingredient_item_lines = ingredient_item.text.split("\n")
-            amount_line, name_line = ingredient_item_lines[0], ingredient_item_lines[1]
+            try:
+                amount_line, name_line = (
+                    ingredient_item_lines[0],
+                    ingredient_item_lines[1],
+                )
+            except Exception:
+                continue
             amount_tokens = amount_line.split(" ")
             if len(amount_tokens) == 1:
                 if amount_tokens[0].isdigit():

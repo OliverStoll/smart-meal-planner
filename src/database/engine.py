@@ -2,16 +2,16 @@ from typing import Literal
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-import diskcache as dc
 from common_utils.logger import create_logger
+from cachetools import TTLCache, cached
 
-from config.settings import PROJECT_NAME, DATABASE_URL, CACHE_DURATION_HOURS
+from settings import PROJECT_NAME, DATABASE_URL, CACHE_DURATION_HOURS
 from database import CLEANED_RECIPES_REF
 
 load_dotenv()
 
 log = create_logger("Database")
-cache = dc.Cache(".cache_sql")
+_cache = TTLCache(maxsize=1024, ttl=CACHE_DURATION_HOURS * 3600)
 
 try:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -25,16 +25,16 @@ def _table_name(table_name: str):
     return f"{PROJECT_NAME}-{table_name}"
 
 
-@cache.memoize(expire=CACHE_DURATION_HOURS * 3600)
-def _fetch_table(ref):
+@cached(_cache)
+def _fetch_table(ref) -> pd.DataFrame:
     df = pd.read_sql_table(table_name=_table_name(ref), con=engine)
     log.debug(f"Loaded table {ref} from SQL")
     return df
 
 
-def df_from_sql(ref: str):
+def df_from_sql(ref: str) -> pd.DataFrame | None:
     try:
-        _fetch_table(ref=ref)
+        return _fetch_table(ref=ref)
     except Exception:
         log.error(f"Could not load {ref} from SQL")
         return None
@@ -55,5 +55,5 @@ def df_to_sql(
         log.error(f"Could not store {ref} to SQL")
 
 
-def recipes_from_sql():
+def recipes_from_sql() -> pd.DataFrame | None:
     return df_from_sql(ref=CLEANED_RECIPES_REF)

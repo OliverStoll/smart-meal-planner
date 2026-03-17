@@ -1,10 +1,12 @@
 from unittest.mock import patch
 import pandas as pd
+import pytest
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from web.driver import create_driver
 
 
+@pytest.mark.slow
 class TestHelloFreshLinkCrawler:
     crawler = HelloFreshLinkCrawler()
 

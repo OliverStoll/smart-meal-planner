@@ -9,8 +9,6 @@ from logging import getLogger
 
 from web.driver import create_driver
 
-debug_url = "https://www.supermarktcheck.de/product/209354-milram-milch-reis"
-
 
 class SupermarketScraper:
     log = getLogger("Supermarket Scraper")
@@ -23,7 +21,6 @@ class SupermarketScraper:
     def get_all_product_links(self, supermarket: str):
         data_dir = f"data/supermarkets/{supermarket}"
         os.makedirs(data_dir, exist_ok=True)
-
         url = f"https://www.supermarktcheck.de/{supermarket}/sortiment/?page="
         list_elements_selector = ".productListElement"
         driver = create_driver()
@@ -38,7 +35,6 @@ class SupermarketScraper:
             for product in products:
                 link = product.find_element(By.CSS_SELECTOR, "a")
                 product_links.append(link.get_attribute("href"))
-
         filename = f"{data_dir}/product_links.json"
         with open(filename, "w") as file:
             json.dump(product_links, file)
@@ -69,7 +65,9 @@ class SupermarketScraper:
             try:
                 product_results = self.scrape_product(link, driver)
                 all_product_results.append(product_results)
-                self.log.debug(f"[{thread_id}][{idx}] {product_results['producer']} | {product_results['title']}")
+                self.log.debug(
+                    f"[{thread_id}][{idx}] {product_results['producer']} | {product_results['title']}"
+                )
             except Exception as e:
                 exception_type = type(e).__name__
                 self.log.error(f"[{thread_id}][{idx}] {link} | {exception_type}")
@@ -77,7 +75,9 @@ class SupermarketScraper:
 
     def scrape_all_products(self, supermarket: str | None = None):
         self.log.info(f"Scraping {supermarket if supermarket else 'all supermarkets'}")
-        data_dir = f"data/supermarkets/{supermarket}" if supermarket else "data/supermarkets"
+        data_dir = (
+            f"data/supermarkets/{supermarket}" if supermarket else "data/supermarkets"
+        )
         os.makedirs(data_dir, exist_ok=True)
         if not os.path.exists(f"{data_dir}/product_links.json"):
             product_links = self.get_all_product_links(supermarket)

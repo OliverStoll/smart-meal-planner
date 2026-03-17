@@ -10,7 +10,7 @@ from database.engine import recipes_from_sql
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 log = create_logger("Recommendation Engine")
 
@@ -26,7 +26,7 @@ def generate_embeddings(recipes: pd.DataFrame | None = None):
         "title: " + recipes["title"] + "; ingredients: " + recipes["ingredient_names"]
     )
     embedding_input = recipes["representation"].tolist()
-    response = client.embeddings.create(
+    response = _client.embeddings.create(
         input=embedding_input, model="text-embedding-3-small"
     )
     log.info("Generated title embeddings")
@@ -38,7 +38,7 @@ def generate_embeddings(recipes: pd.DataFrame | None = None):
 
 def top_k_recommendation(titles, embeddings, query, k=20):
     q = (
-        client.embeddings.create(model="text-embedding-3-small", input=query)
+        _client.embeddings.create(model="text-embedding-3-small", input=query)
         .data[0]
         .embedding
     )
