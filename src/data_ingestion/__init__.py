@@ -1,5 +1,3 @@
-from database.engine import table
-
 KJ_TO_KCAL = 0.239006
 REPLACE_INSTRUCTIONS_STRINGS = {
     "Min.": "Min",
@@ -202,7 +200,3 @@ REPLACE_TITLE_STRINGS = {
     "!": "",
     "&": "und",
 }
-
-RAW_RECIPES_TABLE = table("recipes_raw")
-CLEANED_RECIPES_TABLE = table("recipes_cleaned")
-INGREDIENTS_TABLE = table("ingredients")

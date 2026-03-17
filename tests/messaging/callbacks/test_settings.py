@@ -11,8 +11,10 @@ def mock_firebase():
 
 @pytest.fixture
 def settings_handler(mock_firebase):
-    with patch("messaging.callbacks.settings.FirebaseClient", return_value=mock_firebase):
-        handler = SettingsHandler(callback_delimiter="|")
+    with patch(
+        "messaging.callbacks.settings.FirebaseClient", return_value=mock_firebase
+    ):
+        handler = SettingsHandler()
     return handler
 
 
@@ -51,10 +53,14 @@ class TestGetSettingOptionConfirmationMessage:
         assert "3" in msg
 
     def test_returns_confirmation_with_label_for_meal_type(self, settings_handler):
-        msg = settings_handler.get_setting_option_confirmation_message("meal_type", "vegan")
+        msg = settings_handler.get_setting_option_confirmation_message(
+            "meal_type", "vegan"
+        )
         assert "vegane" in msg
 
-    def test_returns_confirmation_without_label_when_no_label_defined(self, settings_handler):
+    def test_returns_confirmation_without_label_when_no_label_defined(
+        self, settings_handler
+    ):
         msg = settings_handler.get_setting_option_confirmation_message("portions", 4)
         assert "4" in msg
 
@@ -109,7 +115,9 @@ class TestHandleSettingUserSettingOption:
         )
         mock_firebase.set_entry.assert_called_once()
 
-    def test_converts_option_to_int_when_possible(self, settings_handler, mock_firebase):
+    def test_converts_option_to_int_when_possible(
+        self, settings_handler, mock_firebase
+    ):
         _, option = settings_handler.handle_setting_user_setting_option(
             call_data="max_duration|30", chat_id=789
         )
@@ -125,7 +133,9 @@ class TestHandleSettingUserSettingOption:
 
 
 class TestGetUserSettings:
-    def test_returns_default_settings_when_no_firebase_data(self, settings_handler, mock_firebase):
+    def test_returns_default_settings_when_no_firebase_data(
+        self, settings_handler, mock_firebase
+    ):
         mock_firebase.get_entry.return_value = None
         result = settings_handler.get_user_settings(chat_id=123)
         assert result.portions == 2
@@ -133,7 +143,9 @@ class TestGetUserSettings:
         assert result.max_duration == 120
         assert result.cal_min == 0
 
-    def test_returns_stored_settings_from_firebase(self, settings_handler, mock_firebase):
+    def test_returns_stored_settings_from_firebase(
+        self, settings_handler, mock_firebase
+    ):
         mock_firebase.get_entry.return_value = {
             "portions": {"value": 4},
             "meal_type": {"value": "vegan"},

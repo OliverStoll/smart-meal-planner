@@ -3,6 +3,7 @@ from common_utils.apis.firebase import FirebaseClient
 from common_utils.config import secret
 
 from src.messaging.callbacks.settings_types import SettingsProperties, UserSettings
+from messaging import CALLBACK_DELIM
 
 
 class SettingsHandler:
@@ -53,10 +54,11 @@ class SettingsHandler:
         ),
     }
 
-    def __init__(self, callback_delimiter: str, firebase_client: FirebaseClient | None = None):
-        self.callback_delim = callback_delimiter
+    def __init__(self, firebase_client: FirebaseClient | None = None):
         if firebase_client is None:
-            self.firebase_client = FirebaseClient(realtime_db_url=secret(self.firebase_env))
+            self.firebase_client = FirebaseClient(
+                realtime_db_url=secret(self.firebase_env)
+            )
 
     def get_setting_options_menu(self, setting_name: str):
         setting_data = self.settings.get(setting_name, None)
@@ -67,14 +69,16 @@ class SettingsHandler:
         for setting_option in setting_data.options:
             button = InlineButton(
                 text=str(setting_option).capitalize(),
-                callback_data=f"option{self.callback_delim}{setting_name}{self.callback_delim}{setting_option}",
+                callback_data=f"option{CALLBACK_DELIM}{setting_name}{CALLBACK_DELIM}{setting_option}",
             )
             keyboard_buttons.append(button)
         keyboard.row(*keyboard_buttons)
 
         return {"text": setting_data.query_message, "reply_markup": keyboard}
 
-    def handle_setting_user_setting_option(self, call_data: str, chat_id: int) -> tuple[str, str | int]:
+    def handle_setting_user_setting_option(
+        self, call_data: str, chat_id: int
+    ) -> tuple[str, str | int]:
         """
         Handles the callback of the user setting selection. Sets the user setting and get the Setting Type object.
 
@@ -86,13 +90,17 @@ class SettingsHandler:
             tuple[str, str | int]: The setting name and the selected option value.
         """
         # chat_id = message.chat.id
-        setting_name, setting_option = call_data.split(self.callback_delim)
+        setting_name, setting_option = call_data.split(CALLBACK_DELIM)
         setting_option = self._try_convert_str_to_int(setting_option)
-        self.set_user_setting(chat_id=chat_id, setting_name=setting_name, setting_option=setting_option)
+        self.set_user_setting(
+            chat_id=chat_id, setting_name=setting_name, setting_option=setting_option
+        )
 
         return setting_name, setting_option
 
-    def get_setting_option_confirmation_message(self, setting_name: str, option_value: str | int):
+    def get_setting_option_confirmation_message(
+        self, setting_name: str, option_value: str | int
+    ):
         """
         Returns a confirmation message for the selected setting option
 
@@ -102,7 +110,10 @@ class SettingsHandler:
             chat_id (int | None): The chat ID (optional).
         """
         setting_properties = self.get_setting_properties(setting_name)
-        if setting_properties.option_labels and option_value in setting_properties.option_labels:
+        if (
+            setting_properties.option_labels
+            and option_value in setting_properties.option_labels
+        ):
             option_value = setting_properties.option_labels[option_value]
         response = setting_properties.confirmation_message.format(value=option_value)
         return response
@@ -124,7 +135,9 @@ class SettingsHandler:
         """
         return self.settings.get(setting_name, None)
 
-    def set_user_setting(self, chat_id: int, setting_name: str, setting_option: str | int):
+    def set_user_setting(
+        self, chat_id: int, setting_name: str, setting_option: str | int
+    ):
         """Sets a specific user setting in the Firebase database."""
         ref = f"{self.user_settings_ref}/{chat_id}/{setting_name}"
         self.firebase_client.set_entry(
@@ -140,7 +153,9 @@ class SettingsHandler:
             return UserSettings()
         user_settings_data = {}
         for setting_name, setting_data in self.settings.items():
-            setting_value = user_settings_raw.get(setting_name, {}).get("value", setting_data.default_value)
+            setting_value = user_settings_raw.get(setting_name, {}).get(
+                "value", setting_data.default_value
+            )
             setting_value = self._try_convert_str_to_int(setting_value)
             user_settings_data[setting_name] = setting_value
         user_settings = UserSettings(**user_settings_data)

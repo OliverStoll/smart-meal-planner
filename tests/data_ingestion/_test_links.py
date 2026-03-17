@@ -41,11 +41,11 @@ class TestHelloFreshLinkCrawler:
         ), "Expected 'category' column in the DataFrame"
         assert "id" in recipes_links.columns, "Expected 'id' column in the DataFrame"
 
-    def test_assure_recipe_links_from_db(self, category_paths):
+    def test_assure_recipe_links_from_db(self, single_category_path):
         with patch.object(
             HelloFreshLinkCrawler,
             attribute="get_recipe_category_paths",
-            return_value=category_paths,
+            return_value=single_category_path,
         ):
             recipe_links = self.crawler.assure_recipe_links(
                 use_stored=True, save_to_db=False

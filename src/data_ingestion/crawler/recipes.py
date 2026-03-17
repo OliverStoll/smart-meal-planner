@@ -10,9 +10,9 @@ from selenium.webdriver.ie.webdriver import WebDriver
 
 from common_utils.config import create_logger, ROOT_DIR
 
-from data_ingestion import RAW_RECIPES_TABLE
+from database import RAW_RECIPES_REF
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
-from database.engine import engine
+from database.engine import df_to_sql
 from web.driver import create_driver
 
 
@@ -33,6 +33,7 @@ class HelloFreshRecipeCrawler:
             },
             "tags": {
                 "selector": 'div[data-test-id="recipe-description"] > div:nth-child(5)',
+                "postprocessing_fn": self._process_tags(),
             },
             "hero_image": {
                 "selector": 'div[data-test-id="recipe-hero-image"] img',
@@ -57,7 +58,9 @@ class HelloFreshRecipeCrawler:
         }
         os.makedirs(self.thread_output_path, exist_ok=True)
 
-    def get_all_recipes(self, use_stored_links: bool, save_to_db: bool = True) -> pd.DataFrame:
+    def get_all_recipes(
+        self, use_stored_links: bool, save_to_db: bool = True
+    ) -> pd.DataFrame:
         """
         Scrape all recipes from all categories and save them to a csv file.
 
@@ -68,10 +71,14 @@ class HelloFreshRecipeCrawler:
         Returns:
             DataFrame containing all recipes details.
         """
-        recipe_link_entries = self.link_crawler.assure_recipe_links(use_stored=use_stored_links, save_to_db=True)
+        recipe_link_entries = self.link_crawler.assure_recipe_links(
+            use_stored=use_stored_links, save_to_db=True
+        )
 
         threads = []
-        recipe_link_entires_split = np.array_split(recipe_link_entries, self.num_threads)
+        recipe_link_entires_split = np.array_split(
+            recipe_link_entries, self.num_threads
+        )
         for idx, recipe_link_entries in enumerate(recipe_link_entires_split, start=1):
             thread_output_path = f"{self.thread_output_path}/{idx}_recipes.csv"
             driver = create_driver()
@@ -90,11 +97,10 @@ class HelloFreshRecipeCrawler:
             if os.path.exists(thread_output_path):
                 recipes_df = pd.read_csv(thread_output_path)
                 all_recipes_details.append(recipes_df)
-        all_recipies_details = pd.concat(all_recipes_details, ignore_index=True)
+        recipes_details = pd.concat(all_recipes_details, ignore_index=True)
         if save_to_db:
-            all_recipies_details.to_sql(RAW_RECIPES_TABLE, con=engine, if_exists="replace", index=False)
-            self.log.info(f"Recipes saved to {RAW_RECIPES_TABLE} table")
-        return all_recipies_details
+            df_to_sql(ref=RAW_RECIPES_REF, df=recipes_details)
+        return recipes_details
 
     def get_all_recipes_details(
         self, recipe_link_entries: pd.DataFrame, save_path: str, driver: WebDriver
@@ -110,19 +116,25 @@ class HelloFreshRecipeCrawler:
             DataFrame containing all recipies details.
         """
         all_recipes_details = []
-        for idx, recipe_data in enumerate(recipe_link_entries.to_dict(orient="records"), start=1):
+        for idx, recipe_data in enumerate(
+            recipe_link_entries.to_dict(orient="records"), start=1
+        ):
             try:
                 recipe_values = self.get_recipe_details(recipe_data, driver)
                 self.log.debug(f"[{idx:3>}] {recipe_values['title']} - {recipe_values}")
                 all_recipes_details.append(recipe_values)
             except Exception as e:
-                self.log.error(f"Error in getting details from {recipe_data['link']}: {e}")
+                self.log.error(
+                    f"Error in getting details from {recipe_data['link']}: {e}"
+                )
         all_recipes_details = pd.DataFrame(all_recipes_details)
         all_recipes_details.to_csv(save_path, index=False)
         self.log.info(f"Recipes saved to {save_path}")
         return all_recipes_details
 
-    def get_recipe_details(self, recipe_data_row: dict[str, str | None], driver: WebDriver) -> dict:
+    def get_recipe_details(
+        self, recipe_data_row: dict[str, str | None], driver: WebDriver
+    ) -> dict:
         driver.get(recipe_data_row["link"])
         for attribute_name, attribute_crawl_config in self.crawling_config.items():
             try:
@@ -138,7 +150,9 @@ class HelloFreshRecipeCrawler:
                 recipe_data_row[attribute_name] = None
         return recipe_data_row
 
-    def get_recipe_attribute_value(self, attribute_name: str, config: dict, driver: WebDriver) -> dict:
+    def get_recipe_attribute_value(
+        self, attribute_name: str, config: dict, driver: WebDriver
+    ) -> dict:
         """
         Get a single recipe detail value using the provided getter function.
 
@@ -146,7 +160,9 @@ class HelloFreshRecipeCrawler:
             attribute_name: Name of the recipe detail to get.
             config: Details to get the recipe detail value.
         """
-        detail_element = driver.find_element(by=By.CSS_SELECTOR, value=config["selector"])
+        detail_element = driver.find_element(
+            by=By.CSS_SELECTOR, value=config["selector"]
+        )
         if "postprocessing_fn" in config:
             return config["postprocessing_fn"](detail_element)
         else:
@@ -158,8 +174,14 @@ class HelloFreshRecipeCrawler:
 
     def _process_tags(self, element):
         tags_text = element.text
-        tags_list = tags_text.replace("Tags:", "").split("•")
-        return {"tags": tags_list}
+        result = {}
+        parts = tags_text.split("\\n: \\n")
+        for i in range(len(parts) - 1):
+            key = parts[i].split("\\n")[-1].strip()
+            value = parts[i + 1].split("\\n")[0].strip()
+            result[key] = value
+        return result
+        # return {"tags": tags_list}
 
     def _get_ingredients(self, element):
         ingredients_data = {"ingredients": []}
@@ -186,7 +208,9 @@ class HelloFreshRecipeCrawler:
                 quantity, unit = amount_tokens[0], amount_tokens[1]
             else:
                 quantity, unit = 0, ""
-            ingredients_data["ingredients"].append({"quantity": quantity, "unit": unit, "name": name_line})
+            ingredients_data["ingredients"].append(
+                {"quantity": quantity, "unit": unit, "name": name_line}
+            )
         return ingredients_data
 
     def _get_nutrients(self, element):
@@ -202,18 +226,27 @@ class HelloFreshRecipeCrawler:
         }
 
     def _get_instructions(self, element):
-        instructions_steps = element.find_elements(By.CSS_SELECTOR, 'div[data-test-id="instruction-step"]')
-        instructions_text = [instruction_step.text for instruction_step in instructions_steps]
+        instructions_steps = element.find_elements(
+            By.CSS_SELECTOR, 'div[data-test-id="instruction-step"]'
+        )
+        instructions_text = [
+            instruction_step.text for instruction_step in instructions_steps
+        ]
         instruction_image_links = []
         for instruction_step in instructions_steps:
             try:
                 instruction_image_links.append(
-                    instruction_step.find_element(By.CSS_SELECTOR, "img").get_attribute("src")
+                    instruction_step.find_element(By.CSS_SELECTOR, "img").get_attribute(
+                        "src"
+                    )
                 )
             except NoSuchElementException:
                 instruction_image_links.append(None)
 
-        return {"instructions": instructions_text, "instruction_images": instruction_image_links}
+        return {
+            "instructions": instructions_text,
+            "instruction_images": instruction_image_links,
+        }
 
     @staticmethod
     def _process_pdf(element):

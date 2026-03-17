@@ -1,10 +1,11 @@
 # 🥦 Smart Meal Planner
 
-A Telegram bot that helps you plan your weekly meals, generate shopping lists, and discover personalised recipe recommendations powered by HelloFresh data and OpenAI embeddings.
-
 ![Tests](https://github.com/oliverstoll/smart-meal-planner/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.10--3.13-blue)
 ![Coverage](https://codecov.io/gh/oliverstoll/smart-meal-planner/branch/main/graph/badge.svg)
+
+A Telegram bot that helps you plan your weekly meals, generate shopping lists, and discover personalised recipe recommendations powered by HelloFresh data and OpenAI embeddings.
+
 
 ---
 
@@ -23,17 +24,17 @@ A Telegram bot that helps you plan your weekly meals, generate shopping lists, a
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.11 |
-| Bot framework | pyTelegramBotAPI |
-| Database | PostgreSQL via SQLAlchemy |
+| Layer | Technology                 |
+|---|----------------------------|
+| Language | Python 3.11                |
+| Bot framework | pyTelegramBotAPI           |
+| Database | PostgreSQL via SQLAlchemy  |
 | User data | Firebase Realtime Database |
-| ML / recommendations | OpenAI embeddings + scikit-learn |
-| PDF generation | PyMuPDF (fitz) |
-| Web scraping | Selenium |
-| Scheduling | schedule |
-| Containerisation | Docker |
+| ML / recommendations | OpenAI API  |
+| PDF generation | PyMuPDF (fitz)             |
+| Web scraping | Selenium                   |
+| Scheduling | schedule                   |
+| Containerisation | Docker                     |
 
 ---
 

@@ -10,10 +10,9 @@ from data_ingestion import (
     REPLACE_INSTRUCTIONS_STRINGS,
     REPLACE_INSTRUCTION_PATTERNS,
     KJ_TO_KCAL,
-    RAW_RECIPES_TABLE,
-    CLEANED_RECIPES_TABLE,
 )
-from database.engine import engine, table
+from database import RAW_RECIPES_REF, CLEANED_RECIPES_REF
+from database.engine import df_from_sql, df_to_sql
 
 log = logging.getLogger(__name__)
 
@@ -52,10 +51,14 @@ class DataCleaner:
         return recipes
 
     def clean_instructions_column(self, df: pd.DataFrame) -> pd.DataFrame:
-        df["instructions"] = df.apply(lambda row: self._get_recipe_instructions(row), axis=1)
+        df["instructions"] = df.apply(
+            lambda row: self._get_recipe_instructions(row), axis=1
+        )
         return df
 
-    def _get_recipe_instructions(self, recipe_entry: pd.Series, first_steps_to_ignore: int = 2) -> list[list[str]]:
+    def _get_recipe_instructions(
+        self, recipe_entry: pd.Series, first_steps_to_ignore: int = 2
+    ) -> list[list[str]]:
         """
         Get the raw instruction text from the recipe entry and split it into a list of steps.
         Each step is formatted as a list of strings, where each string is a line of instruction.
@@ -69,10 +72,16 @@ class DataCleaner:
         """
         instruction_steps = ast.literal_eval(recipe_entry["instructions"])
         for replace_pattern, replace_value in REPLACE_INSTRUCTION_PATTERNS.items():
-            instruction_steps = [re.sub(replace_pattern, replace_value, x) for x in instruction_steps]
+            instruction_steps = [
+                re.sub(replace_pattern, replace_value, x) for x in instruction_steps
+            ]
         for replace_str, replace_value in REPLACE_INSTRUCTIONS_STRINGS.items():
-            instruction_steps = [x.replace(replace_str, replace_value) for x in instruction_steps]
-        instruction_steps = [x[first_steps_to_ignore:].split("\n") for x in instruction_steps]
+            instruction_steps = [
+                x.replace(replace_str, replace_value) for x in instruction_steps
+            ]
+        instruction_steps = [
+            x[first_steps_to_ignore:].split("\n") for x in instruction_steps
+        ]
         all_instruction_lines = []
         for instruction_step in instruction_steps:
             instruction_step_lines = []
@@ -82,7 +91,9 @@ class DataCleaner:
         return all_instruction_lines
 
     def clean_ingredients_column(self, recipes: pd.DataFrame) -> pd.DataFrame:
-        recipes["ingredients"] = recipes.apply(lambda x: self._clean_recipe_ingredients(x), axis=1)
+        recipes["ingredients"] = recipes.apply(
+            lambda x: self._clean_recipe_ingredients(x), axis=1
+        )
         return recipes
 
     def _clean_recipe_ingredients(self, recipe_entry: pd.Series) -> list[dict]:
@@ -99,7 +110,9 @@ class DataCleaner:
             log.warning(f"No ingredients found for recipe: {recipe_entry['title']}")
             return []
         for key, value in REPLACE_INGREDIENTS_STRINGS.items():
-            recipe_entry["ingredients"] = recipe_entry["ingredients"].replace(key, value)
+            recipe_entry["ingredients"] = recipe_entry["ingredients"].replace(
+                key, value
+            )
             recipe_entry["ingredients"] = recipe_entry["ingredients"].strip()
         try:
             ingredient_entries = ast.literal_eval(recipe_entry["ingredients"])
@@ -110,7 +123,9 @@ class DataCleaner:
 
         return cleaned_ingredients
 
-    def _split_all_paired_ingredients(self, ingredients_entries: list[dict]) -> list[dict]:
+    def _split_all_paired_ingredients(
+        self, ingredients_entries: list[dict]
+    ) -> list[dict]:
         """
         Split all ingredients that are paired with a '/' into two separate entries.
 
@@ -124,7 +139,9 @@ class DataCleaner:
         cleaned_ingredients = []
         for ingredient_entry in ingredients_entries:
             if "/" in ingredient_entry["name"]:
-                first_ingredient, second_ingredient = self._split_ingredient_entry(ingredient_entry)
+                first_ingredient, second_ingredient = self._split_ingredient_entry(
+                    ingredient_entry
+                )
                 cleaned_ingredients.append(first_ingredient)
                 cleaned_ingredients.append(second_ingredient)
             else:
@@ -154,14 +171,24 @@ class DataCleaner:
             except Exception:
                 return None
 
-        recipes["calories"] = recipes["calories"].apply(lambda x: convert_calories(x) if isinstance(x, str) else x)
+        recipes["calories"] = recipes["calories"].apply(
+            lambda x: convert_calories(x) if isinstance(x, str) else x
+        )
         return recipes
 
     @staticmethod
     def clean_category_column(recipes: pd.DataFrame) -> pd.DataFrame:
         recipes["category_friendly"] = recipes["category"]
-        for replace_str in ["e-rezepte", "e-gerichte", "s-rezepte", "rezepte-", "-rezepte"]:
-            recipes["category_friendly"] = recipes["category_friendly"].str.replace(replace_str, "")
+        for replace_str in [
+            "e-rezepte",
+            "e-gerichte",
+            "s-rezepte",
+            "rezepte-",
+            "-rezepte",
+        ]:
+            recipes["category_friendly"] = recipes["category_friendly"].str.replace(
+                replace_str, ""
+            )
         return recipes
 
     @staticmethod
@@ -174,7 +201,9 @@ class DataCleaner:
         else:
             split_lines = [line.strip() + "."]
         split_lines = [x for x in split_lines if len(x) > 3]
-        split_lines = [DataCleaner._format_instruction_measurement(x) for x in split_lines]
+        split_lines = [
+            DataCleaner._format_instruction_measurement(x) for x in split_lines
+        ]
         return split_lines
 
     @staticmethod
@@ -203,12 +232,13 @@ class DataCleaner:
             else:
                 return float(time_str)
 
-        recipe_time_column = recipe_time_column.apply(lambda x: convert_time_to_minutes(x) if isinstance(x, str) else x)
+        recipe_time_column = recipe_time_column.apply(
+            lambda x: convert_time_to_minutes(x) if isinstance(x, str) else x
+        )
         return recipe_time_column
 
 
-def save_ingredients(recipes: pd.DataFrame) -> pd.DataFrame:
-    table_name = table("ingredients")
+def save_ingredients(recipes: pd.DataFrame) -> None:
     unique_ingredients_count = {}
     ingredients_entries = []
     for idx, row in recipes.iterrows():
@@ -216,25 +246,24 @@ def save_ingredients(recipes: pd.DataFrame) -> pd.DataFrame:
             name = ingredient["name"]
             unique_ingredients_count[name] = unique_ingredients_count.get(name, 0) + 1
     unique_ingredients_count = {
-        k: v for k, v in sorted(unique_ingredients_count.items(), key=lambda item: item[1], reverse=True)
+        k: v
+        for k, v in sorted(
+            unique_ingredients_count.items(), key=lambda item: item[1], reverse=True
+        )
     }
     for name, count in unique_ingredients_count.items():
         log.debug(f"{count}: {name}")
         ingredients_entries.append({"name": name, "count": count})
     ingredients = pd.DataFrame(ingredients_entries)
-    ingredients.to_sql(table_name, con=engine, if_exists="replace", index=False)
+    df_to_sql(ref="ingredients", df=ingredients)
 
 
 if __name__ == "__main__":
-    raw_recipes = pd.read_sql_table(RAW_RECIPES_TABLE, con=engine)
+    raw_recipes = df_from_sql(RAW_RECIPES_REF)
     cleaned_recipes = DataCleaner().clean_recipes_data(raw_recipes)
-    # old_cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
-    # cleaned_recipes = pd.merge(cleaned_recipes, old_cleaned_recipes, on=["id"], how="left")
-    cleaned_recipes.to_sql(
-        CLEANED_RECIPES_TABLE,
-        con=engine,
-        if_exists="replace",
-        index=False,
+    df_to_sql(
+        ref=CLEANED_RECIPES_REF,
+        df=cleaned_recipes,
         dtype={"ingredients": JSON, "instructions": JSON, "instruction_images": JSON},
     )
     save_ingredients(cleaned_recipes)

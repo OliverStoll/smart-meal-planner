@@ -5,7 +5,10 @@ from common_utils.logger import create_logger
 from PIL import Image
 from io import BytesIO
 
+import messaging.ingredients
+from database.engine import recipes_from_sql
 from messaging.callbacks.settings_types import UserSettings
+from messaging.recipes import sample_recipes
 
 
 class MessageHandler:
@@ -23,14 +26,13 @@ class MessageHandler:
         "protein": "proteinreiche ",
     }
 
-    def __init__(self, settings_handler, favorites_handler, recipe_handler, bot):
+    def __init__(self, settings_handler, favorites_handler, bot):
         self.settings_handler = settings_handler
-        self.recipe_handler = recipe_handler
         self.favorite_handler = favorites_handler
         self.bot = bot
         # persistent data
         self.last_sent_recipes_df = {}
-        self.pdf_handler = PdfMessageHandler(bot=bot, recipes=self.recipe_handler.raw_recipes)
+        self.pdf_handler = PdfMessageHandler(bot=bot, recipes=recipes_from_sql())
 
     def send_full_recipes_message(
         self,
@@ -62,14 +64,14 @@ class MessageHandler:
         user_settings = self.settings_handler.get_user_settings(chat_id=chat_id)
 
         if recipes_to_send is None:
-            recipes_to_send = self.recipe_handler.sample_fitting_recipes(
+            recipes_to_send = sample_recipes(
                 num_recipes=num_meals,
                 user_settings=user_settings,
             )
         recipe_ids = recipes_to_send["id"].tolist()
         self.last_sent_recipes_df[str(chat_id)] = recipes_to_send
 
-        shopping_list_ingredients = self.recipe_handler.get_ingredients_shopping_list(
+        shopping_list_ingredients = messaging.ingredients.ingredients_shopping_list(
             recipes=recipes_to_send, num_portions=user_settings.portions
         )
         shopping_list_message = self.send_shopping_list_message(
@@ -107,7 +109,9 @@ class MessageHandler:
         related_shopping_list_message_id: int,
         recipe_id: str,
     ):
-        last_sent_recipes: pd.DataFrame | None = self.last_sent_recipes_df.get(str(chat_id), None)
+        last_sent_recipes: pd.DataFrame | None = self.last_sent_recipes_df.get(
+            str(chat_id), None
+        )
 
         if last_sent_recipes is None:
             raise ValueError(f"No recipes found for chat ID {chat_id}.")
@@ -135,9 +139,11 @@ class MessageHandler:
         recipe_id: str,
     ) -> tuple[pd.DataFrame, int]:
         user_settings = self.settings_handler.get_user_settings(chat_id)
-        new_recipe = self.recipe_handler.sample_fitting_recipes(num_recipes=1, user_settings=user_settings)
+        new_recipe = sample_recipes(num_recipes=1, user_settings=user_settings)
         # find the recipe idx to replace
-        idx_to_replace = last_sent_recipes.index[last_sent_recipes["id"] == recipe_id].tolist()[0]
+        idx_to_replace = last_sent_recipes.index[
+            last_sent_recipes["id"] == recipe_id
+        ].tolist()[0]
         last_sent_recipes.loc[idx_to_replace] = new_recipe.iloc[0]
         return last_sent_recipes, idx_to_replace
 
@@ -160,28 +166,34 @@ class MessageHandler:
             user_settings: The user settings for the meal.
         """
 
-        shopping_list_title = self._get_shopping_list_title(num_meals, user_settings.meal_type, user_settings.portions)
-        shopping_list_message = f"{shopping_list_title}\n```\n{shopping_list_ingredients}```"
+        shopping_list_title = self._get_shopping_list_title(
+            num_meals, user_settings.meal_type, user_settings.portions
+        )
+        shopping_list_message = (
+            f"{shopping_list_title}\n```\n{shopping_list_ingredients}```"
+        )
         shopping_list_message_args = {
             "text": shopping_list_message,
             "chat_id": chat_id,
             "parse_mode": "Markdown",
         }
         if replace_message_id:
-            sent_message = self.bot.edit_message_text(message_id=replace_message_id, **shopping_list_message_args)
+            sent_message = self.bot.edit_message_text(
+                message_id=replace_message_id, **shopping_list_message_args
+            )
         else:
             sent_message = self.bot.send_message(**shopping_list_message_args)
         return sent_message
 
-    def _get_shopping_list_title(self, num_meals: int, meal_type: str, portions: int) -> str:
+    def _get_shopping_list_title(
+        self, num_meals: int, meal_type: str, portions: int
+    ) -> str:
         """
         Generate the title response for the meal message.
         """
         emoji = self.title_emoji.get(meal_type, "🍲")
         friendly_meal_type = self.meal_types.get(meal_type, "")
-        title_response = (
-            f"**{emoji} Hier sind die Zutaten für {num_meals} {friendly_meal_type}Gerichte á {portions} Portionen:**"
-        )
+        title_response = f"**{emoji} Hier sind die Zutaten für {num_meals} {friendly_meal_type}Gerichte á {portions} Portionen:**"
         return title_response
 
 
@@ -193,7 +205,6 @@ class PdfMessageHandler:
 
     def __init__(self, bot: TeleBot, recipes: pd.DataFrame):
         self.bot = bot
-        self.recipes = recipes
         self.pdf_id_to_title_mapping = self._get_pdf_id_to_title_mapping(recipes)
 
     def send_multiple_recipe_pdfs(
@@ -254,7 +265,9 @@ class PdfMessageHandler:
             message_id: The message ID of the sent PDF.
         """
         thumbnail_file = self._get_thumbnail_file(recipe_id=recipe_id)
-        recipe_pdf_path = self._get_pdf_path(recipe_id=recipe_id, num_portions=num_portions)
+        recipe_pdf_path = self._get_pdf_ref(
+            recipe_id=recipe_id, num_portions=num_portions
+        )
         keyboard = self._create_pdf_inline_keyboard(
             shopping_list_message_id=shopping_list_message_id,
             recipe_id=recipe_id,
@@ -272,7 +285,9 @@ class PdfMessageHandler:
                 return message.message_id
         except FileNotFoundError:
             self.log.error(f"PDF not found: {recipe_pdf_path}")
-            message = self.bot.send_message(chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard)
+            message = self.bot.send_message(
+                chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard
+            )
             return message.message_id
 
     def _get_thumbnail_file(self, recipe_id: int) -> BytesIO | None:
@@ -309,18 +324,21 @@ class PdfMessageHandler:
     ) -> InlineKeyboardMarkup:
         keyboard = InlineKeyboardMarkup()
         replace_button = InlineButton(
-            text="🔄 Austauschen", callback_data=f"replace|{shopping_list_message_id}|{recipe_id}"
+            text="🔄 Austauschen",
+            callback_data=f"replace|{shopping_list_message_id}|{recipe_id}",
         )
 
         favorite_button = InlineButton(
             text="⭐️ Speichern" if not is_favorite else "❌ Unfavorisieren",
-            callback_data=f"favorite|{recipe_id}" if not is_favorite else f"unfavorite|{recipe_id}",
+            callback_data=f"favorite|{recipe_id}"
+            if not is_favorite
+            else f"unfavorite|{recipe_id}",
         )
         keyboard.row(replace_button, favorite_button)
 
         return keyboard
 
-    def _get_pdf_path(self, recipe_id: int, num_portions: int) -> str | None:
+    def _get_pdf_ref(self, recipe_id: int, num_portions: int) -> str | None:
         """
         Get the path to the PDF file for the recipe.
 
@@ -336,8 +354,8 @@ class PdfMessageHandler:
             self.log.warning(f"PDF not found for recipe ID {recipe_id}")
             return None
 
-        pdf_path = f"{self.recipe_pdf_dir}/{num_portions}/{pdf_title}.pdf"
-        return pdf_path
+        ref = f"pdf/{num_portions}/{pdf_title}.pdf"
+        return ref
 
     @staticmethod
     def _get_pdf_id_to_title_mapping(recipes: pd.DataFrame) -> dict[int, str]:

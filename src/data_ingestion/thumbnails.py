@@ -7,8 +7,8 @@ import numpy as np
 from threading import Thread
 from common_utils.logger import create_logger
 
-from data_ingestion import CLEANED_RECIPES_TABLE
-from database.engine import engine
+from database import CLEANED_RECIPES_REF
+from database.engine import df_from_sql
 from database.storage import upload_file
 
 log = create_logger("Image Downloader")
@@ -42,7 +42,7 @@ def save_single_image(image_url, title):
     buffer = BytesIO()
     image.save(buffer, "JPEG", quality=25)
     buffer.seek(0)
-    upload_file(buffer, reference=f"thumbnails/{title}")
+    upload_file(buffer, ref=f"thumbnails/{title}")
 
 
 def save_images(df: pd.DataFrame):
@@ -64,6 +64,6 @@ def save_images_threaded(df: pd.DataFrame, num_threads: int = 20):
 
 
 if __name__ == "__main__":
-    cleaned_recipes = pd.read_sql_table(CLEANED_RECIPES_TABLE, con=engine)
+    cleaned_recipes = df_from_sql(CLEANED_RECIPES_REF)
     cleaned_recipes = cleaned_recipes[["title", "hero_image"]]
     save_images_threaded(cleaned_recipes)

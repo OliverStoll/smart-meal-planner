@@ -7,14 +7,16 @@ from common_utils.logger import create_logger
 
 from config.settings import RECIPE_URL
 from data_ingestion.utils import scroll_driver_down
-from database.engine import table, engine
+from database.engine import df_from_sql, df_to_sql
 from web.driver import create_driver
 
 
 class HelloFreshLinkCrawler:
     log = create_logger("HelloFreshLinkCrawler")
 
-    def assure_recipe_links(self, use_stored: bool, save_to_db: bool = False) -> pd.DataFrame:
+    def assure_recipe_links(
+        self, use_stored: bool, save_to_db: bool = False
+    ) -> pd.DataFrame:
         if use_stored:
             try:
                 return self.get_recipes_from_db()
@@ -23,14 +25,14 @@ class HelloFreshLinkCrawler:
         recipe_links = self.get_all_recipe_links()
         self.log.info(f"Found {len(recipe_links)} unique recipe links")
         if save_to_db:
-            recipe_links.to_sql(table("links"), con=engine, if_exists="replace", index=False)
+            df_to_sql(ref="links", df=recipe_links)
         return recipe_links
 
     def get_recipes_from_db(self) -> pd.DataFrame:
-        recipe_links_df = pd.read_sql_table(table("links"), con=engine)
-        assert len(recipe_links_df) > 0, "No recipe links found in the database."
-        self.log.info(f"Loaded {len(recipe_links_df)} Recipe links")
-        return recipe_links_df
+        recipe_links = df_from_sql(ref="links")
+        assert len(recipe_links) > 0, "No recipe links found in the database."
+        self.log.info(f"Loaded {len(recipe_links)} Recipe links")
+        return recipe_links
 
     def get_all_recipe_links(self) -> pd.DataFrame:
         """
@@ -44,13 +46,19 @@ class HelloFreshLinkCrawler:
         self.log.info(f"Found {len(category_paths)} categories")
         all_categories_link_data = []
         for idx, category_path in enumerate(category_paths, start=1):
-            category_recipe_links = self.get_recipes_links_of_category(driver=driver, category_path=category_path)
+            category_recipe_links = self.get_recipes_links_of_category(
+                driver=driver, category_path=category_path
+            )
             self.log.debug(
                 f"[{idx}/{len(category_paths)}]  Found {len(category_recipe_links)} recipes in category {category_path}"
             )
             category_link_data = []
             for recipe_link in category_recipe_links:
-                recipe_data = {"link": recipe_link, "category": category_path, "id": recipe_link.split("-")[-1]}
+                recipe_data = {
+                    "link": recipe_link,
+                    "category": category_path,
+                    "id": recipe_link.split("-")[-1],
+                }
                 category_link_data.append(recipe_data)
             all_categories_link_data.extend(category_link_data)
 
@@ -60,7 +68,9 @@ class HelloFreshLinkCrawler:
         recipes_links = recipes_links.drop_duplicates(subset=["link"])
         recipes_links = recipes_links.drop_duplicates(subset=["id"])
         recipes_links["category_friendly"] = (
-            recipes_links["category"].str.replace("rezepte-", "").replace("-rezepte", "")
+            recipes_links["category"]
+            .str.replace("rezepte-", "")
+            .replace("-rezepte", "")
         )
         return recipes_links
 
@@ -74,7 +84,9 @@ class HelloFreshLinkCrawler:
         driver = create_driver()
         driver.get(RECIPE_URL)
         category_link_elements = driver.find_elements(By.CSS_SELECTOR, "a")
-        category_links = [category.get_attribute("href") for category in category_link_elements]
+        category_links = [
+            category.get_attribute("href") for category in category_link_elements
+        ]
         category_paths = self._clean_recipe_category_paths(category_links)
         driver.close()
         return category_paths
@@ -96,7 +108,9 @@ class HelloFreshLinkCrawler:
         category_links = list(set(category_links))  # only keep unique links
         filtered_links = [link for link in category_links if RECIPE_URL in link]
         filtered_links = [link.split("&")[0] for link in filtered_links]
-        filtered_links = [link for link in filtered_links if len(link.split("-")[-1]) != 24]
+        filtered_links = [
+            link for link in filtered_links if len(link.split("-")[-1]) != 24
+        ]
         category_paths = [link.split("/")[-1] for link in filtered_links]
         return category_paths
 
@@ -124,9 +138,15 @@ class HelloFreshLinkCrawler:
         return recipe_links_href
 
     @staticmethod
-    def _clean_recipe_links(recipe_link_elements: list[webdriver.remote.webelement.WebElement]):
-        recipe_links_href = [recipe_link.get_attribute("href") for recipe_link in recipe_link_elements]
-        recipe_links_href = [link for link in recipe_links_href if len(link.split("-")[-1]) == 24]
+    def _clean_recipe_links(
+        recipe_link_elements: list[webdriver.remote.webelement.WebElement],
+    ):
+        recipe_links_href = [
+            recipe_link.get_attribute("href") for recipe_link in recipe_link_elements
+        ]
+        recipe_links_href = [
+            link for link in recipe_links_href if len(link.split("-")[-1]) == 24
+        ]
         recipe_links_href = list(set(recipe_links_href))
         return recipe_links_href
 
