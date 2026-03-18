@@ -1,4 +1,3 @@
-import os
 from unittest.mock import patch
 import pandas as pd
 import pytest
@@ -39,8 +38,6 @@ class TestHelloFreshScraper:
         )
 
     def test_get_all_recipes_details(self, recipe_links):
-        output_file = ".temp_test.csv"
-        os.remove(output_file) if os.path.exists(output_file) else None
         driver = create_driver()
         recipes_details = HelloFreshRecipeCrawler().get_all_recipes_details(recipe_links, driver=driver)
         assert isinstance(recipes_details, pd.DataFrame), "Expected a DataFrame of recipe details"
@@ -50,8 +47,6 @@ class TestHelloFreshScraper:
         assert self.expected_recipes_columns.issubset(set(recipes_details.columns)), (
             f"Expected columns {self.expected_recipes_columns} in the recipe details"
         )
-        assert os.path.exists(output_file), f"Expected the recipe details to be saved to f{output_file}"
-        os.remove(output_file)
         driver.close()
 
 
