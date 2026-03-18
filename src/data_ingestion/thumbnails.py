@@ -30,7 +30,7 @@ def save_images_threaded(df: pd.DataFrame, num_threads: int = 20):
 def save_images(df: pd.DataFrame):
     for index, row in df.iterrows():
         save_single_image(image_url=row["hero_image"], title=row["title"])
-        log.debug(f"[{index}] Saved image for {row["title"]}")
+        log.debug(f"[{index}] Saved image for {row['title']}")
 
 
 def save_single_image(image_url, title):

@@ -51,9 +51,9 @@ def send_full_message(
         log.error("Either recipes_to_send or num_meals must be provided.")
         return
 
-    num_meals = num_meals or len(recipes_to_send)
     user_settings = get_user_settings(chat_id=chat_id)
 
+    num_meals = num_meals or len(recipes_to_send)
     if recipes_to_send is None:
         recipes_to_send = sample_recipes(
             num_recipes=num_meals, user_settings=user_settings

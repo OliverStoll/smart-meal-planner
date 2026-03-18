@@ -132,6 +132,11 @@ python -m src.data_ingestion.cleaning
 pytest
 ```
 
+To exclude all data ingestion tests (which are slow and require a running database), use the `slow` marker:
+```bash
+pytest -m "not slow"
+```
+
 Coverage is configured via `.coveragerc`. Run with coverage report:
 
 ```bash

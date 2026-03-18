@@ -18,7 +18,7 @@ scikit-learn~=1.8.0
 pymupdf-fonts~=1.0.5
 boto3~=1.42
 pre-commit~=4.5.1
-diskcache~=5.6.3
-
+cachetools~=7.0
 botocore~=1.42.67
 pytest~=9.0.2
+pytest-cov~=7.0

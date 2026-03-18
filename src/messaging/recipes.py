@@ -23,7 +23,7 @@ def sample_recipes(
     """
     if recipes is None:
         recipes = filtered_recipes(user_settings=user_settings)
-    if recipes and num_recipes < len(recipes):
+    if recipes is not None and num_recipes < len(recipes):
         recipes = recipes.sample(num_recipes)
         recipes.reset_index(drop=True, inplace=True)
     return recipes
@@ -34,7 +34,7 @@ def num_filtered_recipes(
 ) -> int:
     """Filter the recipes based on user settings and returns the number of selected recipes."""
     recipes_df = filtered_recipes(user_settings=user_settings, recipes=recipes)
-    return len(recipes_df) if recipes_df else 0
+    return len(recipes_df) if recipes_df is not None else 0
 
 
 def filtered_recipes(

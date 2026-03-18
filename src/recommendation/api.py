@@ -10,12 +10,17 @@ from database.engine import recipes_from_sql
 
 load_dotenv()
 
-_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+try:
+    _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+except Exception:
+    _client = None
 
 log = create_logger("Recommendation Engine")
 
 
 def generate_embeddings(recipes: pd.DataFrame | None = None):
+    if not _client:
+        raise RuntimeError("OpenAI client not initialized. Check your environment variables.")
     if recipes is None:
         recipes = recipes_from_sql()
     recipe_titles = recipes["title"]
@@ -37,6 +42,8 @@ def generate_embeddings(recipes: pd.DataFrame | None = None):
 
 
 def top_k_recommendation(titles, embeddings, query, k=20):
+    if not _client:
+        raise RuntimeError("OpenAI client not initialized. Check your environment variables.")
     q = (
         _client.embeddings.create(model="text-embedding-3-small", input=query)
         .data[0]

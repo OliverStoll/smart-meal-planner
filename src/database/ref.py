@@ -3,4 +3,4 @@ def thumbnail_ref(title: str) -> str:
 
 
 def pdf_ref(title: str, num_portions: int) -> str:
-    return f"pdfs/{num_portions}/{title.replace("_", " ")}.pdf"
+    return f"pdfs/{num_portions}/{title.replace('_', ' ')}.pdf"

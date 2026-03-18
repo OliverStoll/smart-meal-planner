@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -10,18 +12,21 @@ class EmbeddingsStub:
             input_list = [input]
         else:
             input_list = input
-        return {
-            "data": [
-                {"embedding": np.ones(768).tolist(), "index": i}
+        return SimpleNamespace(
+            data=[
+                SimpleNamespace(
+                    embedding=np.ones(768).tolist(),
+                    index=i
+                )
                 for i, _ in enumerate(input_list)
             ]
-        }
+        )
 
 
 @pytest.fixture
 def client_stub(monkeypatch):
-    stub = type("ClientStub", (), {"embeddings": EmbeddingsStub()})()
-    monkeypatch.setattr("recommendation.api", stub)
+    stub = SimpleNamespace(embeddings=EmbeddingsStub())
+    monkeypatch.setattr("recommendation.api._client", stub)
     return stub
 
 

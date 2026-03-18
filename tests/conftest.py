@@ -1,6 +1,8 @@
 import ast
 import os
 from pathlib import Path
+from unittest.mock import Mock
+
 import pandas as pd
 import pytest
 
@@ -41,3 +43,4 @@ def cleaned_recipes():
     for column in ["ingredients", "instructions", "instruction_images"]:
         df[column] = df[column].apply(ast.literal_eval)
     return df
+

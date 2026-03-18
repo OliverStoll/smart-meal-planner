@@ -25,11 +25,15 @@ except Exception:
 
 
 def upload_file(path_or_obj: str | BytesIO, ref: str):
+    if not s3_client:
+        raise RuntimeError("S3 client not initialized for `upload_file`.")
     s3_client.upload_fileobj(path_or_obj, BUCKET_REF, ref)
 
 
 def download_file(ref: str) -> BytesIO | None:
     """Download a file from S3 into a BytesIO buffer."""
+    if not s3_client:
+        raise RuntimeError("S3 client not initialized for `download_file`.")
     obj = s3_client.get_object(Bucket=BUCKET_REF, Key=ref)
     buffer = BytesIO(obj["Body"].read())
     buffer.name = ref.split("/")[-1]
@@ -38,6 +42,8 @@ def download_file(ref: str) -> BytesIO | None:
 
 
 def file_exists(ref: str) -> bool:
+    if not s3_client:
+        raise RuntimeError("S3 client not initialized for `file_exists`.")
     try:
         s3_client.head_object(Bucket=BUCKET_REF, Key=ref)
         return True

@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from telebot import TeleBot
 
@@ -19,6 +21,11 @@ TEST_CHAT_ID = 123456789
 @pytest.fixture
 def recipe_id(cleaned_recipes) -> str:
     return cleaned_recipes.iloc[0]["id"]
+
+
+@pytest.fixture(autouse=True)
+def set_bot_env():
+    os.environ["TELEGRAM_BOT_TOKEN"] = os.getenv("TEST_TELEGRAM_BOT_TOKEN")
 
 
 class MockBot:
