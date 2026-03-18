@@ -128,39 +128,29 @@ class TestTelegramBotMessages:
 
     def test_send_intro(self):
         bot = self.handle_message_with_bot("start")
-        bot.send_message.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, text=INTRO_RESPONSE, parse_mode="Markdown"
-        )
+        bot.send_message.assert_called_once_with(chat_id=TEST_CHAT_ID, text=INTRO_RESPONSE, parse_mode="Markdown")
 
     def test_change_options(self):
         bot = self.handle_message_with_bot("optionen")
-        bot.send_message.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, text=SETTINGS_RESPONSE, reply_markup=ANY
-        )
+        bot.send_message.assert_called_once_with(chat_id=TEST_CHAT_ID, text=SETTINGS_RESPONSE, reply_markup=ANY)
         _, kwargs = bot.send_message.call_args
         assert kwargs["reply_markup"] is not None
 
     def test_send_meal(self):
         bot = self.handle_message_with_bot("gerichte")
-        bot.send_message.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, text=MEALS_RESPONSE, reply_markup=ANY
-        )
+        bot.send_message.assert_called_once_with(chat_id=TEST_CHAT_ID, text=MEALS_RESPONSE, reply_markup=ANY)
         _, kwargs = bot.send_message.call_args
         assert kwargs["reply_markup"] is not None
 
     def test_send_weekly(self):
         bot = self.handle_message_with_bot("woechentlich")
-        bot.send_message.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, text=WEEKLY_RESPONSE, reply_markup=ANY
-        )
+        bot.send_message.assert_called_once_with(chat_id=TEST_CHAT_ID, text=WEEKLY_RESPONSE, reply_markup=ANY)
         _, kwargs = bot.send_message.call_args
         assert kwargs["reply_markup"] is not None
 
     def test_send_favorites(self):
         bot = self.handle_message_with_bot("favoriten")
-        bot.send_message.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, text=FAVORITE_RESPONSE, reply_markup=ANY
-        )
+        bot.send_message.assert_called_once_with(chat_id=TEST_CHAT_ID, text=FAVORITE_RESPONSE, reply_markup=ANY)
         _, kwargs = bot.send_message.call_args
         assert kwargs["reply_markup"] is not None
 
@@ -168,15 +158,9 @@ class TestTelegramBotMessages:
 class TestTelegramBotCallbacks:
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch, cleaned_recipes):
-        monkeypatch.setattr(
-            "messaging.bot.recipes_from_sql", lambda *_: cleaned_recipes
-        )
-        monkeypatch.setattr(
-            "messaging.recipes.recipes_from_sql", lambda *_: cleaned_recipes
-        )
-        monkeypatch.setattr(
-            "messaging.utils.recipes_from_sql", lambda *_: cleaned_recipes
-        )
+        monkeypatch.setattr("messaging.bot.recipes_from_sql", lambda *_: cleaned_recipes)
+        monkeypatch.setattr("messaging.recipes.recipes_from_sql", lambda *_: cleaned_recipes)
+        monkeypatch.setattr("messaging.utils.recipes_from_sql", lambda *_: cleaned_recipes)
 
     def handles_callback_with_bot(self, data: list[str]):
         instance = TelegramBot()
@@ -188,9 +172,7 @@ class TestTelegramBotCallbacks:
 
     def test_handle_settings_menu(self):
         bot = self.handles_callback_with_bot(data=["settings", "portions"])
-        bot.edit_message_text.assert_called_once_with(
-            chat_id=TEST_CHAT_ID, message_id=1, text=ANY, reply_markup=ANY
-        )
+        bot.edit_message_text.assert_called_once_with(chat_id=TEST_CHAT_ID, message_id=1, text=ANY, reply_markup=ANY)
 
     def test_handle_setting_value_set(self):
         bot = self.handles_callback_with_bot(data=["option", "portions", "3"])
@@ -234,9 +216,7 @@ class TestTelegramBotCallbacks:
             "messaging.messaging.send_shopping_list_message",
             lambda **kwargs: MockMessage(message_id=3),
         )
-        monkeypatch.setattr(
-            "messaging.bot.get_favorite_ids", lambda **kwargs: [recipe_id]
-        )
+        monkeypatch.setattr("messaging.bot.get_favorite_ids", lambda **kwargs: [recipe_id])
         bot = self.handles_callback_with_bot(data=["fav_gerichte", "2"])
         print(bot)  # TODO
 

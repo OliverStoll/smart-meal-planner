@@ -57,18 +57,12 @@ def send_full_message(
     num_meals = num_meals or len(recipes_to_send)
     all_recipes = recipes_from_sql()
     if recipes_to_send is None:
-        recipes_to_send = sample_recipes(
-            num_recipes=num_meals, user_settings=user_settings, recipes=all_recipes
-        )
+        recipes_to_send = sample_recipes(num_recipes=num_meals, user_settings=user_settings, recipes=all_recipes)
     recipe_ids = recipes_to_send["id"].tolist()
     last_sent_recipes_df[chat_id] = recipes_to_send
 
-    ingredients = ingredients_shopping_list(
-        recipes=recipes_to_send, num_portions=user_settings.portions
-    )
-    title = shopping_list_title(
-        num_meals=num_meals, meal_type=user_settings.meal_type, portions=num_meals
-    )
+    ingredients = ingredients_shopping_list(recipes=recipes_to_send, num_portions=user_settings.portions)
+    title = shopping_list_title(num_meals=num_meals, meal_type=user_settings.meal_type, portions=num_meals)
     message = send_shopping_list_message(
         bot=bot,
         chat_id=chat_id,
@@ -121,9 +115,7 @@ def shopping_list_title(num_meals: int, meal_type: str, portions: int) -> str:
     return title_response
 
 
-def replace_single_recipe_in_data(
-    recipes: pd.DataFrame, chat_id: int, recipe_id: str
-) -> tuple[pd.DataFrame, int]:
+def replace_single_recipe_in_data(recipes: pd.DataFrame, chat_id: int, recipe_id: str) -> tuple[pd.DataFrame, int]:
     user_settings = get_user_settings(chat_id)
     new_recipe = sample_recipes(num_recipes=1, user_settings=user_settings)
     idx_to_replace = recipes.index[recipes["id"] == recipe_id].tolist()[0]

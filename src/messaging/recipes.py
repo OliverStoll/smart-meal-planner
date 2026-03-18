@@ -7,9 +7,7 @@ from src.messaging.callbacks.settings_types import UserSettings
 log = create_logger("Recipe Messager")
 
 
-def sample_recipes(
-    num_recipes: int, user_settings: UserSettings, recipes: pd.DataFrame = None
-) -> pd.DataFrame:
+def sample_recipes(num_recipes: int, user_settings: UserSettings, recipes: pd.DataFrame = None) -> pd.DataFrame:
     """
     Filters the recipes based on user settings and returns a DataFrame of selected recipes.
 
@@ -29,17 +27,13 @@ def sample_recipes(
     return recipes
 
 
-def num_filtered_recipes(
-    user_settings: UserSettings, recipes: pd.DataFrame | None = None
-) -> int:
+def num_filtered_recipes(user_settings: UserSettings, recipes: pd.DataFrame | None = None) -> int:
     """Filter the recipes based on user settings and returns the number of selected recipes."""
     recipes_df = filtered_recipes(user_settings=user_settings, recipes=recipes)
     return len(recipes_df) if recipes_df is not None else 0
 
 
-def filtered_recipes(
-    user_settings: UserSettings, recipes: pd.DataFrame | None = None
-) -> pd.DataFrame:
+def filtered_recipes(user_settings: UserSettings, recipes: pd.DataFrame | None = None) -> pd.DataFrame:
     """
     Filters the recipes based on user settings and returns the number of selected recipes.
 
@@ -54,28 +48,20 @@ def filtered_recipes(
         recipes = recipes_from_sql()
     # recipes = recipes[recipes["total_time"] <= user_settings.max_duration]  # TODO
     # recipes = recipes[recipes["calories"] >= user_settings.cal_min]
-    recipes = filter_recipes_by_meal_type(
-        recipes=recipes, meal_type=user_settings.meal_type
-    )
+    recipes = filter_recipes_by_meal_type(recipes=recipes, meal_type=user_settings.meal_type)
     return recipes
 
 
 def filter_recipes_by_meal_type(recipes: pd.DataFrame, meal_type: str) -> pd.DataFrame:
     if meal_type == "vegetarisch":
         tags = ["vegetarisch", "vegan"]
-        recipes = recipes[
-            recipes["tags"].apply(lambda x: any(tag in x.lower() for tag in tags))
-        ]
+        recipes = recipes[recipes["tags"].apply(lambda x: any(tag in x.lower() for tag in tags))]
     elif meal_type == "vegan":
         tags = ["vegan"]
-        recipes = recipes[
-            recipes["tags"].apply(lambda x: any(tag in x.lower() for tag in tags))
-        ]
+        recipes = recipes[recipes["tags"].apply(lambda x: any(tag in x.lower() for tag in tags))]
     elif meal_type == "protein":
         negativ_tags = ["vegetarisch", "vegan"]
-        recipes = recipes[
-            recipes["tags"].apply(lambda x: not any(tag in x for tag in negativ_tags))
-        ]
+        recipes = recipes[recipes["tags"].apply(lambda x: not any(tag in x for tag in negativ_tags))]
     return recipes
 
 

@@ -13,10 +13,7 @@ class EmbeddingsStub:
         else:
             input_list = input
         return SimpleNamespace(
-            data=[
-                SimpleNamespace(embedding=np.ones(768).tolist(), index=i)
-                for i, _ in enumerate(input_list)
-            ]
+            data=[SimpleNamespace(embedding=np.ones(768).tolist(), index=i) for i, _ in enumerate(input_list)]
         )
 
 
@@ -36,7 +33,5 @@ def test_generate_embeddings(client_stub, cleaned_recipes):
 
 def test_top_k_recommendation(client_stub, cleaned_recipes):
     titles, embeddings = generate_embeddings(cleaned_recipes)
-    recommendations = top_k_recommendation(
-        titles=titles, embeddings=embeddings, query="test"
-    )
+    recommendations = top_k_recommendation(titles=titles, embeddings=embeddings, query="test")
     print(recommendations)

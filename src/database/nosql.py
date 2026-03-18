@@ -30,9 +30,7 @@ class FirebaseClient:
         """
         self.database_url = realtime_db_url or os.getenv(env_name, None)
         if not self.database_url:
-            raise ValueError(
-                "Could not load firebase project from environment variables"
-            )
+            raise ValueError("Could not load firebase project from environment variables")
 
     def get_list(self, ref: str, max_results: int = 100, convert_to_list: bool = True):
         """Get a list of child-entries from an object in firebase."""
@@ -64,12 +62,8 @@ class FirebaseClient:
         """Set an object entry in firebase"""
         try:
             url = f"{self.database_url}/{ref}.json"
-            response = requests.put(
-                url=url, headers=self.headers, data=json.dumps(data)
-            )
-            self.log.debug(
-                f"Set entry {ref} with data {data} in firebase: {response.text}"
-            )
+            response = requests.put(url=url, headers=self.headers, data=json.dumps(data))
+            self.log.debug(f"Set entry {ref} with data {data} in firebase: {response.text}")
         except Exception as e:
             self.log.error(f"Failed to set entry {ref}: {e}")
 
@@ -87,12 +81,8 @@ class FirebaseClient:
         """
         try:
             url = f"{self.database_url}/{ref}.json"
-            response = requests.patch(
-                url=url, headers=self.headers, data=json.dumps(data)
-            )
-            self.log.debug(
-                f"Updated entry {ref} with data {data} in Firebase: {response.text}"
-            )
+            response = requests.patch(url=url, headers=self.headers, data=json.dumps(data))
+            self.log.debug(f"Updated entry {ref} with data {data} in Firebase: {response.text}")
         except Exception as e:
             self.log.error(f"Failed to update entry {ref}: {e}")
 

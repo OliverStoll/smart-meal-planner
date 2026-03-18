@@ -86,9 +86,7 @@ def send_recipe_pdf(
         return message.message_id
     except Exception:
         log.error(f"PDF not found for id {recipe_id}")
-        message = bot.send_message(
-            chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard
-        )
+        message = bot.send_message(chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard)
         return message.message_id
 
 
@@ -98,10 +96,6 @@ def pdf_inline_keyboard(
     is_favorite: bool = False,
 ) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardMarkup()
-    replace_button_ = replace_button(
-        recipe_id=recipe_id, shopping_list_msg_id=shopping_list_message_id
-    )
-    keyboard.row(
-        replace_button_, favorize_button(recipe_id=recipe_id, is_favorite=is_favorite)
-    )
+    replace_button_ = replace_button(recipe_id=recipe_id, shopping_list_msg_id=shopping_list_message_id)
+    keyboard.row(replace_button_, favorize_button(recipe_id=recipe_id, is_favorite=is_favorite))
     return keyboard

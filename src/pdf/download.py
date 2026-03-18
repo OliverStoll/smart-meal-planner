@@ -13,7 +13,7 @@ log = getLogger("PDF Downloader")
 def save_all_pdfs(recipes: pd.DataFrame):
     counter = 0
     for idx, row in recipes.iterrows():
-        counter_str = f"[{idx+1}/{len(recipes)}]"
+        counter_str = f"[{idx + 1}/{len(recipes)}]"
         pdf_title = get_pdf_title_from_meal_name(row["title"])
         try:
             save_single_pdf(url=row["pdf_link"], db_ref=pdf_v2_ref(pdf_title))
@@ -26,12 +26,8 @@ def save_all_pdfs(recipes: pd.DataFrame):
 
 def save_single_pdf(url: str, db_ref: str) -> None:
     response = requests.get(url)
-    assert (
-        response.status_code == 200
-    ), f"Error in downloading pdf: {response.status_code}"
-    assert (
-        response.headers["Content-Type"] == "application/pdf"
-    ), f"Error in pdf: {response.headers['Content-Type']}"
+    assert response.status_code == 200, f"Error in downloading pdf: {response.status_code}"
+    assert response.headers["Content-Type"] == "application/pdf", f"Error in pdf: {response.headers['Content-Type']}"
     assert len(response.content) > 1000, "Error in downloading pdf: File is empty"
     buffer = BytesIO()
     buffer.write(response.content)

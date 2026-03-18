@@ -47,9 +47,7 @@ def log_incoming_msg(message):
 
 def register_callback(bot: telebot.TeleBot, prefix: str):
     def decorator(function):
-        bot.callback_query_handler(func=lambda call: call.data.startswith(prefix))(
-            function
-        )
+        bot.callback_query_handler(func=lambda call: call.data.startswith(prefix))(function)
         return function
 
     return decorator
@@ -98,13 +96,9 @@ class TelegramBot:
         @self.bot.message_handler(commands=["start", "help"])
         def send_intro(message):
             log_incoming_msg(message)
-            self.bot.send_message(
-                chat_id=message.chat.id, text=INTRO_RESPONSE, parse_mode="Markdown"
-            )
+            self.bot.send_message(chat_id=message.chat.id, text=INTRO_RESPONSE, parse_mode="Markdown")
 
-        @self.bot.message_handler(
-            commands=["optionen", "options", "einstellungen", "settings"]
-        )
+        @self.bot.message_handler(commands=["optionen", "options", "einstellungen", "settings"])
         def change_options(message):
             log_incoming_msg(message)
             self.bot.send_message(
@@ -116,34 +110,22 @@ class TelegramBot:
         @self.bot.message_handler(commands=["gerichte"])
         def send_meal(message):
             log_incoming_msg(message)
-            keyboard = enumerated_keyboard(
-                callback_prefix="gerichte", start_idx=1, end_idx=6
-            )
-            self.bot.send_message(
-                chat_id=message.chat.id, text=MEALS_RESPONSE, reply_markup=keyboard
-            )
+            keyboard = enumerated_keyboard(callback_prefix="gerichte", start_idx=1, end_idx=6)
+            self.bot.send_message(chat_id=message.chat.id, text=MEALS_RESPONSE, reply_markup=keyboard)
 
         @self.bot.message_handler(commands=["woechentlich"])
         def send_weekly(message):
             log_incoming_msg(message)
-            keyboard = enumerated_keyboard(
-                callback_prefix="woechentlich", start_idx=1, end_idx=6
-            )
-            self.bot.send_message(
-                chat_id=message.chat.id, text=WEEKLY_RESPONSE, reply_markup=keyboard
-            )
+            keyboard = enumerated_keyboard(callback_prefix="woechentlich", start_idx=1, end_idx=6)
+            self.bot.send_message(chat_id=message.chat.id, text=WEEKLY_RESPONSE, reply_markup=keyboard)
 
         @self.bot.message_handler(commands=["favoriten"])
         def send_favorites(message):
             log_incoming_msg(message)
             favorite_ids = get_favorite_ids(chat_id=message.chat.id)
             num_options = min(6, len(favorite_ids))
-            keyboard = enumerated_keyboard(
-                callback_prefix="fav_gerichte", start_idx=1, end_idx=num_options
-            )
-            self.bot.send_message(
-                chat_id=message.chat.id, text=FAVORITE_RESPONSE, reply_markup=keyboard
-            )
+            keyboard = enumerated_keyboard(callback_prefix="fav_gerichte", start_idx=1, end_idx=num_options)
+            self.bot.send_message(chat_id=message.chat.id, text=FAVORITE_RESPONSE, reply_markup=keyboard)
 
     def setup_message_callbacks(self):
         """Add all callback query handlers to the bot."""
@@ -169,22 +151,14 @@ class TelegramBot:
             call_data = clean_call_data(call.data, prefix="option")
             chat_id = call.message.chat.id
             if len(call_data) != 2:
-                log.warning(
-                    f"Invalid callback data format: {call.data}, expected 2 args"
-                )
+                log.warning(f"Invalid callback data format: {call.data}, expected 2 args")
                 return
             setting_name, value = call_data
-            handle_setting_user_setting_option(
-                name=setting_name, value=value, chat_id=chat_id
-            )
-            response = setting_value_confirmation_message(
-                setting_name=setting_name, value=value
-            )
+            handle_setting_user_setting_option(name=setting_name, value=value, chat_id=chat_id)
+            response = setting_value_confirmation_message(setting_name=setting_name, value=value)
             if MESSAGE_SETTING_CONFIGS[setting_name].is_filter:
                 response += recipe_filter_confirmation_message(chat_id=chat_id)
-            self.bot.edit_message_text(
-                chat_id=chat_id, message_id=call.message.message_id, text=response
-            )
+            self.bot.edit_message_text(chat_id=chat_id, message_id=call.message.message_id, text=response)
 
         @register_callback(self.bot, "woechentlich")
         def handle_weekly(call):
@@ -200,9 +174,7 @@ class TelegramBot:
         def handle_replace_recipe(call):
             log_incoming_call(call)
             try:
-                shopping_list_msg_id, recipe_id = clean_call_data(
-                    call.data, prefix="replace"
-                )
+                shopping_list_msg_id, recipe_id = clean_call_data(call.data, prefix="replace")
                 resend_messages_to_replace_meal(
                     bot=self.bot,
                     chat_id=call.message.chat.id,
@@ -219,13 +191,9 @@ class TelegramBot:
             try:
                 recipe_id = clean_call_data(call_data=call.data, prefix="favorite")[0]
                 favorize_recipe(chat_id=call.message.chat.id, recipe_id=recipe_id)
-                recipe_title = recipe_titles_by_id(
-                    recipes=recipes_from_sql(), recipe_ids=[recipe_id]
-                )[0]
+                recipe_title = recipe_titles_by_id(recipes=recipes_from_sql(), recipe_ids=[recipe_id])[0]
                 answer_text = f"⭐️ {recipe_title:30} wurde favorisiert"
-                self.bot.answer_callback_query(
-                    callback_query_id=call.id, text=answer_text
-                )
+                self.bot.answer_callback_query(callback_query_id=call.id, text=answer_text)
             except (ValueError, IndexError) as e:
                 log.warning(f"Invalid 'favorite' format: {call.data} - {str(e)}")
 
@@ -235,13 +203,9 @@ class TelegramBot:
             try:
                 recipe_id = clean_call_data(call_data=call.data, prefix="unfavorite")[0]
                 unfavorize_recipe(chat_id=call.message.chat.id, recipe_id=recipe_id)
-                recipe_title = recipe_titles_by_id(
-                    recipes=recipes_from_sql(), recipe_ids=[recipe_id]
-                )[0]
+                recipe_title = recipe_titles_by_id(recipes=recipes_from_sql(), recipe_ids=[recipe_id])[0]
                 answer_text = f"❌ {recipe_title:30} wurde unfavorisiert"
-                self.bot.answer_callback_query(
-                    callback_query_id=call.id, text=answer_text
-                )
+                self.bot.answer_callback_query(callback_query_id=call.id, text=answer_text)
             except (ValueError, IndexError) as e:
                 log.warning(f"Invalid 'unfavorite' format: {call.data} - {str(e)}")
 
@@ -270,20 +234,14 @@ class TelegramBot:
                 user_settings = get_user_settings(chat_id=chat_id)
                 favorite_recipe_ids = get_favorite_ids(chat_id=chat_id)
                 if not favorite_recipe_ids:
-                    self.bot.answer_callback_query(
-                        callback_query_id=call.id, text="No favorite recipes found."
-                    )
-                recipes_df = recipes_by_id(
-                    recipes_from_sql(), recipe_ids=favorite_recipe_ids
-                )
+                    self.bot.answer_callback_query(callback_query_id=call.id, text="No favorite recipes found.")
+                recipes_df = recipes_by_id(recipes_from_sql(), recipe_ids=favorite_recipe_ids)
                 sampled_recipes = sample_recipes(
                     num_recipes=num_recipes,
                     user_settings=user_settings,
                     recipes=recipes_df,
                 )
-                send_full_message(
-                    bot=self.bot, chat_id=chat_id, recipes_to_send=sampled_recipes
-                )
+                send_full_message(bot=self.bot, chat_id=chat_id, recipes_to_send=sampled_recipes)
             except ValueError as e:
                 log.warning(f"Invalid 'fav_gerichte' value: {call.data} - {str(e)}")
 

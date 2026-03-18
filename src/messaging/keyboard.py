@@ -5,11 +5,7 @@ from messaging.utils import callback_str
 
 
 def favorize_button(recipe_id: int, is_favorite: bool):
-    fav_callback = (
-        callback_str(["favorite", recipe_id])
-        if not is_favorite
-        else callback_str(["unfavorite", recipe_id])
-    )
+    fav_callback = callback_str(["favorite", recipe_id]) if not is_favorite else callback_str(["unfavorite", recipe_id])
     return InlineKeyboardButton(
         text="⭐️ Speichern" if not is_favorite else "❌ Unfavorisieren",
         callback_data=fav_callback,
@@ -40,9 +36,7 @@ def enumerated_keyboard(callback_prefix, start_idx, end_idx):
     """Create a keyboard with enumerated buttons."""
     keyboard = InlineKeyboardMarkup()
     buttons = [
-        InlineKeyboardButton(
-            f"{i}", callback_data=f"{callback_prefix}{CALLBACK_DELIM}{i}"
-        )
+        InlineKeyboardButton(f"{i}", callback_data=f"{callback_prefix}{CALLBACK_DELIM}{i}")
         for i in range(start_idx, end_idx + 1)
     ]
     keyboard.row(*buttons)

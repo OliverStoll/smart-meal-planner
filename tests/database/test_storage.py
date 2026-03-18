@@ -16,9 +16,7 @@ def mock_s3(monkeypatch):
 def test_upload_file_calls_s3(monkeypatch, mock_s3):
     fake_file = io.BytesIO(b"data")
     module.upload_file(fake_file, "ref123")
-    mock_s3.upload_fileobj.assert_called_once_with(
-        fake_file, module.BUCKET_REF, "ref123"
-    )
+    mock_s3.upload_fileobj.assert_called_once_with(fake_file, module.BUCKET_REF, "ref123")
 
 
 def test_download_file_returns_buffer(mock_s3):

@@ -20,22 +20,14 @@ def clean_sellers(
     data["sellers"] = data["sellers"].fillna("").str.split(", ")
     data["sellers"] = data["sellers"].apply(lambda x: [seller.strip() for seller in x])
     data["sellers_partially"] = data["sellers"].apply(
-        lambda x: [
-            seller.split(" (gelegentlich")[0]
-            for seller in x
-            if "(gelegentlich im Sortiment)" in seller
-        ]
+        lambda x: [seller.split(" (gelegentlich")[0] for seller in x if "(gelegentlich im Sortiment)" in seller]
+    )
+    data["sellers_always"] = data["sellers"].apply(
+        lambda x: [seller for seller in x if "(gelegentlich im Sortiment)" not in seller]
     )
     data["sellers_always"] = data["sellers"].apply(
         lambda x: [
-            seller for seller in x if "(gelegentlich im Sortiment)" not in seller
-        ]
-    )
-    data["sellers_always"] = data["sellers"].apply(
-        lambda x: [
-            SUPERMARKET_FRIENDLY_NAMES.get(seller, seller)
-            for seller in x
-            if seller in SUPERMARKET_FRIENDLY_NAMES
+            SUPERMARKET_FRIENDLY_NAMES.get(seller, seller) for seller in x if seller in SUPERMARKET_FRIENDLY_NAMES
         ]
     )
     data["sellers_always"] = data["sellers_always"].apply(lambda x: ", ".join(x))

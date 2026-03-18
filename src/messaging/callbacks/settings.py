@@ -16,9 +16,7 @@ def get_user_settings(chat_id: int) -> UserSettings:
         return UserSettings()
     user_settings_data = {}
     for setting_name, setting_data in MESSAGE_SETTING_CONFIGS.items():
-        setting_value = user_settings_raw.get(setting_name, {}).get(
-            "value", setting_data.default_value
-        )
+        setting_value = user_settings_raw.get(setting_name, {}).get("value", setting_data.default_value)
         setting_value = str_to_int(setting_value)
         user_settings_data[setting_name] = setting_value
     user_settings = UserSettings(**user_settings_data)
@@ -33,9 +31,7 @@ def setting_value_confirmation_message(setting_name: str, value: str | int):
     return response
 
 
-def handle_setting_user_setting_option(
-    name: str, value: str, chat_id: int
-) -> tuple[str, str | int]:
+def handle_setting_user_setting_option(name: str, value: str, chat_id: int) -> tuple[str, str | int]:
     """
     Handles the callback of the user setting selection. Sets the user setting and get the Setting Type object.
 
@@ -73,7 +69,5 @@ def get_setting_options_menu(setting_name: str) -> tuple:
 def recipe_filter_confirmation_message(chat_id: int) -> str:
     user_settings = get_user_settings(chat_id=chat_id)
     num_options = num_filtered_recipes(user_settings=user_settings)
-    message = (
-        f"Es gibt insgesamt {num_options} passende Gerichte für deine Einstellungen."
-    )
+    message = f"Es gibt insgesamt {num_options} passende Gerichte für deine Einstellungen."
     return message

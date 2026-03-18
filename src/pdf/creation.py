@@ -93,16 +93,12 @@ class PdfCreator:
         self._crop_pdf_page_to_height(full_page_height, page)
 
     def insert_page_with_instructions(self, pdf, recipe_entry, num_meals):
-        instruction_images = self._get_instruction_images(
-            recipe_entry["instruction_images"]
-        )
+        instruction_images = self._get_instruction_images(recipe_entry["instruction_images"])
         all_instructions = self._get_instructions(recipe_entry, num_meals)
         page = pdf.new_page(width=self.width, height=self.height)
         current_height = self.top_padding
         for idx, instructions_step in enumerate(all_instructions):
-            instruction_image = (
-                instruction_images[idx] if len(instruction_images) > idx else None
-            )
+            instruction_image = instruction_images[idx] if len(instruction_images) > idx else None
             current_height = self._insert_single_instruction_step(
                 page=page,
                 instruction_image=instruction_image,
@@ -136,18 +132,12 @@ class PdfCreator:
                 image_height=self.step_height,
             )
         for _idx, single_instruction in enumerate(instructions_step):
-            used_height = self.insert_textbox(
-                page, single_instruction, position=local_height
-            )
+            used_height = self.insert_textbox(page, single_instruction, position=local_height)
             local_height += used_height + self.paragraph_spacing
         required_next_height = local_height + self.instruction_step_spacing
-        minimum_next_height = (
-            current_height + self.step_height + self.instruction_step_spacing
-        )
+        minimum_next_height = current_height + self.step_height + self.instruction_step_spacing
         next_height = max(minimum_next_height, required_next_height)
-        self._insert_instruction_step_divider(
-            next_height - self.instruction_step_spacing, page
-        )
+        self._insert_instruction_step_divider(next_height - self.instruction_step_spacing, page)
         return next_height
 
     def _insert_instruction_step_divider(self, height, page):
@@ -158,24 +148,18 @@ class PdfCreator:
             x1=self.width - self.right_padding * 3,
             y1=height + line_height + self.img_txt_spacing,
         )
-        page.draw_rect(
-            line_rect, color=self.instruction_divider_color, width=line_height
-        )
+        page.draw_rect(line_rect, color=self.instruction_divider_color, width=line_height)
 
     def _get_instruction_images(self, image_links: str) -> list[BytesIO]:
         all_images = []
         for idx, image_url in enumerate(image_links):
             if image_url is None or image_url == "":
-                self.log.warning(
-                    f"Image URL is empty or None for index {idx}: {image_url}"
-                )
+                self.log.warning(f"Image URL is empty or None for index {idx}: {image_url}")
                 all_images.append(None)
                 continue
             try:
                 image = Image.open(BytesIO(requests.get(image_url).content))
-                image = self.crop_image_percentages(
-                    image, *self.instruction_img_crop_percentages
-                )
+                image = self.crop_image_percentages(image, *self.instruction_img_crop_percentages)
                 img_buffer = BytesIO()
                 image.save(img_buffer, format="JPEG", quality=self.image_quality)
                 img_buffer.seek(0)
@@ -185,9 +169,7 @@ class PdfCreator:
             all_images.append(img_buffer)
         return all_images
 
-    def _get_instructions(
-        self, recipe_entry: pd.Series, num_meals: int
-    ) -> list[list[str]]:
+    def _get_instructions(self, recipe_entry: pd.Series, num_meals: int) -> list[list[str]]:
         """Replaces all placeholders in the instructions with the correct values (with and without unit)"""
 
         def multiply_match(match, factor):
@@ -206,9 +188,7 @@ class PdfCreator:
             new_step = []
             for instruction in instruction_step:
                 for pattern in placeholder_patterns:
-                    instruction = re.sub(
-                        pattern, lambda x: multiply_match(x, factor), instruction
-                    )
+                    instruction = re.sub(pattern, lambda x: multiply_match(x, factor), instruction)
                 new_step.append(instruction)
             new_instructions.append(new_step)
 
@@ -232,23 +212,17 @@ class PdfCreator:
             x1=self.width - self.right_padding,
             y1=position + internal_height,
         )
-        unused_height = page.insert_textbox(
-            rect, text, fontname="helv", **self.text_formatting
-        )
+        unused_height = page.insert_textbox(rect, text, fontname="helv", **self.text_formatting)
         used_height = internal_height - unused_height
         return used_height
 
     @staticmethod
     def _crop_pdf_page_to_height(full_page_height: int, page: fitz.Page) -> None:
-        fitted_page_rect = fitz.Rect(
-            x0=page.rect.x0, y0=page.rect.y0, x1=page.rect.x1, y1=full_page_height
-        )
+        fitted_page_rect = fitz.Rect(x0=page.rect.x0, y0=page.rect.y0, x1=page.rect.x1, y1=full_page_height)
         page.set_cropbox(fitted_page_rect)
 
     @staticmethod
-    def crop_image_percentages(
-        img: Image, left: float, right: float, top: float, bottom: float
-    ) -> Image:
+    def crop_image_percentages(img: Image, left: float, right: float, top: float, bottom: float) -> Image:
         """Crops an image with given percentages of the image size from each side"""
         width, height = img.size
         left = int(left * width)
@@ -269,9 +243,7 @@ def create_pdfs(recipes: pd.DataFrame, num_meals: int):
             print(f"Error in creating PDF: {e}")
 
 
-def create_pdfs_threaded(
-    recipes: pd.DataFrame, num_meals: list[int], num_threads_per_mealsize: int = 2
-):
+def create_pdfs_threaded(recipes: pd.DataFrame, num_meals: list[int], num_threads_per_mealsize: int = 2):
     from threading import Thread
     import numpy as np
 

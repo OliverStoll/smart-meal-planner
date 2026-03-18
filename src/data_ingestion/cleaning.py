@@ -52,9 +52,7 @@ def clean_category_column(recipes: pd.DataFrame) -> pd.DataFrame:
         "rezepte-",
         "-rezepte",
     ]:
-        recipes["category_friendly"] = recipes["category_friendly"].str.replace(
-            replace_str, ""
-        )
+        recipes["category_friendly"] = recipes["category_friendly"].str.replace(replace_str, "")
     return recipes
 
 
@@ -63,9 +61,7 @@ def clean_instructions_column(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _get_recipe_instructions(
-    recipe_entry: pd.Series, first_steps_to_ignore: int = 2
-) -> list[list[str]]:
+def _get_recipe_instructions(recipe_entry: pd.Series, first_steps_to_ignore: int = 2) -> list[list[str]]:
     """
     Get the raw instruction text from the recipe entry and split it into a list of steps.
     Each step is formatted as a list of strings, where each string is a line of instruction.
@@ -79,16 +75,10 @@ def _get_recipe_instructions(
     """
     instruction_steps = ast.literal_eval(recipe_entry["instructions"])
     for replace_pattern, replace_value in REPLACE_INSTRUCTION_PATTERNS.items():
-        instruction_steps = [
-            re.sub(replace_pattern, replace_value, x) for x in instruction_steps
-        ]
+        instruction_steps = [re.sub(replace_pattern, replace_value, x) for x in instruction_steps]
     for replace_str, replace_value in REPLACE_INSTRUCTIONS_STRINGS.items():
-        instruction_steps = [
-            x.replace(replace_str, replace_value) for x in instruction_steps
-        ]
-    instruction_steps = [
-        x[first_steps_to_ignore:].split("\n") for x in instruction_steps
-    ]
+        instruction_steps = [x.replace(replace_str, replace_value) for x in instruction_steps]
+    instruction_steps = [x[first_steps_to_ignore:].split("\n") for x in instruction_steps]
     all_instruction_lines = []
     for instruction_step in instruction_steps:
         instruction_step_lines = []
@@ -146,9 +136,7 @@ def _split_all_paired_ingredients(ingredients_entries: list[dict]) -> list[dict]
     cleaned_ingredients = []
     for ingredient_entry in ingredients_entries:
         if "/" in ingredient_entry["name"]:
-            first_ingredient, second_ingredient = _split_ingredient_entry(
-                ingredient_entry
-            )
+            first_ingredient, second_ingredient = _split_ingredient_entry(ingredient_entry)
             cleaned_ingredients.append(first_ingredient)
             cleaned_ingredients.append(second_ingredient)
         else:
@@ -157,9 +145,7 @@ def _split_all_paired_ingredients(ingredients_entries: list[dict]) -> list[dict]
 
 
 def clean_ingredients_column(recipes: pd.DataFrame) -> pd.DataFrame:
-    recipes["ingredients"] = recipes.apply(
-        lambda x: _clean_recipe_ingredients(x), axis=1
-    )
+    recipes["ingredients"] = recipes.apply(lambda x: _clean_recipe_ingredients(x), axis=1)
     return recipes
 
 
@@ -185,9 +171,7 @@ def clean_calories_column(recipes: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             return None
 
-    recipes["calories"] = recipes["calories"].apply(
-        lambda x: convert_calories(x) if isinstance(x, str) else x
-    )
+    recipes["calories"] = recipes["calories"].apply(lambda x: convert_calories(x) if isinstance(x, str) else x)
     return recipes
 
 
@@ -223,9 +207,7 @@ def _format_cooking_time(
         else:
             return float(time_str)
 
-    recipe_time_column = recipe_time_column.apply(
-        lambda x: convert_time_to_minutes(x) if isinstance(x, str) else x
-    )
+    recipe_time_column = recipe_time_column.apply(lambda x: convert_time_to_minutes(x) if isinstance(x, str) else x)
     return recipe_time_column
 
 
@@ -237,10 +219,7 @@ def save_ingredients(recipes: pd.DataFrame) -> None:
             name = ingredient["name"]
             unique_ingredients_count[name] = unique_ingredients_count.get(name, 0) + 1
     unique_ingredients_count = {
-        k: v
-        for k, v in sorted(
-            unique_ingredients_count.items(), key=lambda item: item[1], reverse=True
-        )
+        k: v for k, v in sorted(unique_ingredients_count.items(), key=lambda item: item[1], reverse=True)
     }
     for name, count in unique_ingredients_count.items():
         log.debug(f"{count}: {name}")

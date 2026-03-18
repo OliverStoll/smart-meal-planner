@@ -65,9 +65,7 @@ class SupermarketScraper:
             try:
                 product_results = self.scrape_product(link, driver)
                 all_product_results.append(product_results)
-                self.log.debug(
-                    f"[{thread_id}][{idx}] {product_results['producer']} | {product_results['title']}"
-                )
+                self.log.debug(f"[{thread_id}][{idx}] {product_results['producer']} | {product_results['title']}")
             except Exception as e:
                 exception_type = type(e).__name__
                 self.log.error(f"[{thread_id}][{idx}] {link} | {exception_type}")
@@ -76,9 +74,7 @@ class SupermarketScraper:
 
     def scrape_all_products(self, supermarket: str | None = None):
         self.log.info(f"Scraping {supermarket if supermarket else 'all supermarkets'}")
-        data_dir = (
-            f"data/supermarkets/{supermarket}" if supermarket else "data/supermarkets"
-        )
+        data_dir = f"data/supermarkets/{supermarket}" if supermarket else "data/supermarkets"
         os.makedirs(data_dir, exist_ok=True)
         if not os.path.exists(f"{data_dir}/product_links.json"):
             product_links = self.get_all_product_links(supermarket)

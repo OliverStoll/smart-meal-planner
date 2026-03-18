@@ -47,9 +47,7 @@ def df_to_sql(
     dtype=None,
 ):
     try:
-        df.to_sql(
-            _table_name(ref), con=engine, if_exists=if_exists, index=False, dtype=dtype
-        )
+        df.to_sql(_table_name(ref), con=engine, if_exists=if_exists, index=False, dtype=dtype)
         log.debug(f"Stored table {ref} to SQL")
     except Exception:
         log.error(f"Could not store {ref} to SQL")
