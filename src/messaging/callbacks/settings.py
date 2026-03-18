@@ -11,7 +11,7 @@ from messaging import CALLBACK_DELIM, MESSAGE_SETTING_CONFIGS
 
 def get_user_settings(chat_id: int) -> UserSettings:
     ref = f"{NOSQL_USER_DATA_REF}/{chat_id}"
-    user_settings_raw = nosql_client().get_entry(ref=ref)
+    user_settings_raw = nosql_client().get(ref=ref)
     if not user_settings_raw:
         return UserSettings()
     user_settings_data = {}

@@ -12,7 +12,7 @@ def subscription_num_meals(chat_id: int) -> int:
     """Get the number of meals the user is subscribed to, if any."""
     log.info(f"Getting subscription for {chat_id}.")
     ref = f"{NOSQL_SUBSCRIPTION_REF}/{chat_id}"
-    subscription = nosql_client().get_entry(ref)
+    subscription = nosql_client().get(ref)
     if not subscription:
         return 0
     return subscription.get("num_meals", 0)
@@ -24,7 +24,7 @@ def get_all_subscriptions() -> dict[int, int]:
         A dictionary containing all active subscriptions, with chat IDs as keys and number of meals as values.
     """
     log.info("Getting all subscriptions.")
-    subscriptions_data = nosql_client().get_entry(NOSQL_SUBSCRIPTION_REF)
+    subscriptions_data = nosql_client().get(NOSQL_SUBSCRIPTION_REF)
     if not subscriptions_data:
         return {}
 
