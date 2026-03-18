@@ -99,12 +99,17 @@ class HelloFreshRecipeCrawler:
 
         with ThreadPoolExecutor() as executor:
             futures = []
+            thread_drivers = []
             for thread_id, thread_recipe_links in enumerate(recipe_links_split, start=1):
+                driver = create_driver()
                 thread_recipe_links = pd.DataFrame(thread_recipe_links, columns=all_recipe_links.columns)
-                future = executor.submit(self.get_all_recipes_details, thread_recipe_links, create_driver())
+                future = executor.submit(self.get_all_recipes_details, thread_recipe_links, driver)
                 futures.append(future)
+                thread_drivers.append(driver)
 
         all_recipes_details: list[pd.DataFrame] = [future.result() for future in futures]
+        for driver in thread_drivers:
+            driver.close()
         recipes_details = pd.concat(all_recipes_details, ignore_index=True)
         if save_to_db:
             df_to_sql(ref=RAW_RECIPES_REF, df=recipes_details)
