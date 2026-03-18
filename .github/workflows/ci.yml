@@ -52,4 +52,4 @@ jobs:
       - name: Install security tool
         run: pip install safety
       - name: Run security scan
-        run: safety check
+        run: safety scan
