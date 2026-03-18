@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -18,10 +18,9 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install dev dependencies
-        run: pip install pytest coverage pytest-cov
+        run: |
+          pip install uv
+          uv pip install -r requirements.txt
 
       - name: Run tests with coverage
         run: |
@@ -35,8 +34,28 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Install Python linters
-        run: pip install flake8
+        run: pip install flake8 black isort
       - name: Run linter
         run: flake8 . --max-line-length=120
+      - name: Format check
+        run: |
+          black --check .
+          isort --check-only .
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install security tool
+        run: pip install safety
+      - name: Run security scan
+        run: safety check
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependency vulnerability audit (pip-audit)
+        uses: pypa/gh-action-pip-audit@v1.1.0

@@ -84,11 +84,9 @@ def send_recipe_pdf(
             thumb=thumbnail_file,
         )
         return message.message_id
-    except FileNotFoundError:
+    except Exception:
         log.error(f"PDF not found for id {recipe_id}")
-        message = bot.send_message(
-            chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard
-        )
+        message = bot.send_message(chat_id=chat_id, text="PDF nicht gefunden!", reply_markup=keyboard)
         return message.message_id
 
 

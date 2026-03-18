@@ -1,4 +1,5 @@
 import os
+from multiprocessing.managers import Value
 
 import pytest
 from telebot import TeleBot
@@ -200,6 +201,9 @@ class TestTelegramBotCallbacks:
             message_id=1,
             text="🍽️ Du erhältst jetzt Rezepte für 3 Portionen.",
         )
+
+    def test_handle_setting_value_invalid(self):
+        self.handles_callback_with_bot(data=["option", "portions"])
 
     def test_handle_weekly(self):
         bot = self.handles_callback_with_bot(data=["woechentlich", "1"])

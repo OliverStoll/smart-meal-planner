@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
-from data_ingestion.crawler.recipes import HelloFreshRecipeCrawler
+from data_ingestion.crawler.recipes import HelloFreshRecipeCrawler, clean_ingredient_text
 from web.driver import create_driver
 
 
@@ -60,3 +60,17 @@ class TestHelloFreshScraper:
             output_file
         ), f"Expected the recipe details to be saved to f{output_file}"
         os.remove(output_file)
+
+@pytest.mark.parametrize(
+    "input_text,expected",
+    [
+        ("2 kg\nKartoffeln", {"quantity": 2, "unit": "kg", "name": "Kartoffeln"}),
+        ("5\nÄpfel", {"quantity": 5, "unit": "", "name": "Äpfel"}),
+        ("Stück\nZitrone", {"quantity": 1, "unit": "Stück", "name": "Zitrone"}),
+        ("1.5 EL\nZucker", {"quantity": 1.5, "unit": "EL", "name": "Zucker"}),
+        ("invalid", None),
+        ("too\nmany\nlines", None),
+    ],
+)
+def test_clean_ingredient_text(input_text, expected):
+    assert clean_ingredient_text(input_text) == expected

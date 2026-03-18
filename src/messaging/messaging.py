@@ -123,17 +123,12 @@ def shopping_list_title(num_meals: int, meal_type: str, portions: int) -> str:
     return title_response
 
 
-def replace_single_recipe_in_data(
-    last_sent_recipes: pd.DataFrame, chat_id: int, recipe_id: str
-) -> tuple[pd.DataFrame, int]:
+def replace_single_recipe_in_data(recipes: pd.DataFrame, chat_id: int, recipe_id: str) -> tuple[pd.DataFrame, int]:
     user_settings = get_user_settings(chat_id)
     new_recipe = sample_recipes(num_recipes=1, user_settings=user_settings)
-    # find the recipe idx to replace
-    idx_to_replace = last_sent_recipes.index[
-        last_sent_recipes["id"] == recipe_id
-    ].tolist()[0]
-    last_sent_recipes.loc[idx_to_replace] = new_recipe.iloc[0]
-    return last_sent_recipes, idx_to_replace
+    idx_to_replace = recipes.index[recipes["id"] == recipe_id].tolist()[0]
+    recipes.loc[idx_to_replace] = new_recipe.iloc[0]
+    return recipes, idx_to_replace
 
 
 def resend_messages_to_replace_meal(
@@ -149,7 +144,7 @@ def resend_messages_to_replace_meal(
     if last_sent_recipes is None:
         raise ValueError(f"No recipes found for chat ID {chat_id}.")
     updated_recipes, replaced_idx = replace_single_recipe_in_data(
-        last_sent_recipes=last_sent_recipes, chat_id=chat_id, recipe_id=recipe_id
+        recipes=last_sent_recipes, chat_id=chat_id, recipe_id=recipe_id
     )
     bot.delete_message(chat_id=chat_id, message_id=message_id)
     send_full_message(

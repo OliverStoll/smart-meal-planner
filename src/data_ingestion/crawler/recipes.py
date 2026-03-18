@@ -13,7 +13,33 @@ from common_utils.config import create_logger, ROOT_DIR
 from database import RAW_RECIPES_REF
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from database.engine import df_to_sql
+from messaging.utils import str_to_int
 from web.driver import create_driver
+
+
+def clean_ingredient_text(ingredient_item_text) -> dict | None:
+    ingredient_item_lines = ingredient_item_text.split("\n")
+    if len(ingredient_item_lines) != 2:
+        return None
+    amount_line, name_line = ingredient_item_lines
+    amount_tokens = amount_line.split(" ")
+    if len(amount_tokens) == 1 and amount_tokens[0].isdigit():
+        quantity = amount_tokens[0]
+        unit = ""
+    elif len(amount_tokens) == 1 and amount_tokens[0] == "Stück":
+        unit = amount_tokens[0]
+        quantity = 1
+    elif len(amount_tokens) >= 2:
+        quantity, unit = amount_tokens[0], amount_tokens[1]
+    else:
+        quantity, unit = 0, ""
+    quantity = str_to_int(quantity)
+    if isinstance(quantity, str):
+        try:
+            quantity = float(quantity)
+        except ValueError:
+            pass
+    return {"quantity": quantity, "unit": unit, "name": name_line}
 
 
 class HelloFreshRecipeCrawler:
@@ -194,29 +220,9 @@ class HelloFreshRecipeCrawler:
         selector = 'div[data-test-id="ingredient-item-shipped"]'
         ingredient_items = element.find_elements(By.CSS_SELECTOR, selector)
         for ingredient_item in ingredient_items:
-            ingredient_item_lines = ingredient_item.text.split("\n")
-            try:
-                amount_line, name_line = (
-                    ingredient_item_lines[0],
-                    ingredient_item_lines[1],
-                )
-            except Exception:
-                continue
-            amount_tokens = amount_line.split(" ")
-            if len(amount_tokens) == 1:
-                if amount_tokens[0].isdigit():
-                    quantity = amount_tokens[0]
-                    unit = ""
-                else:
-                    unit = amount_tokens[0]
-                    quantity = 1 if unit == "Stück" else 0
-            elif len(amount_tokens) >= 2:
-                quantity, unit = amount_tokens[0], amount_tokens[1]
-            else:
-                quantity, unit = 0, ""
-            ingredients_data["ingredients"].append(
-                {"quantity": quantity, "unit": unit, "name": name_line}
-            )
+            ingredient_item_data = clean_ingredient_text(ingredient_item.text)
+            if ingredient_item_data:
+                ingredients_data["ingredients"].append(ingredient_item_data)
         return ingredients_data
 
     def _get_nutrients(self, element):

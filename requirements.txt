@@ -22,3 +22,4 @@ cachetools~=7.0
 botocore~=1.42.67
 pytest~=9.0.2
 pytest-cov~=7.0
+coverage~=7.13
