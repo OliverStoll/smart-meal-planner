@@ -49,7 +49,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install security tool
-        run: pip install safety
       - name: Run security scan
-        run: safety scan
+        uses: pypa/gh-action-pip-audit@v1.1.0
