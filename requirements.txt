@@ -1,5 +1,4 @@
 selenium~=4.41.0
-my-common-utils~=1.8.0
 pandas~=3.0.1
 python-dotenv~=1.2.2
 uvicorn~=0.42.0

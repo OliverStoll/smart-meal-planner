@@ -5,8 +5,8 @@ from PIL import Image
 import requests
 import numpy as np
 from threading import Thread
-from common_utils.logger import create_logger
 
+from logs.logs import create_logger
 from database.ref import thumbnail_ref
 from database import CLEANED_RECIPES_REF
 from database.engine import df_from_sql

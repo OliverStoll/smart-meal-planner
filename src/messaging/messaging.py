@@ -1,6 +1,6 @@
 import pandas as pd
 from telebot import types, TeleBot
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 
 from messaging.callbacks.favorites import get_favorite_ids
 from messaging.callbacks.settings import get_user_settings

@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd

@@ -8,8 +8,7 @@ from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.ie.webdriver import WebDriver
 
-from common_utils.config import create_logger, ROOT_DIR
-
+from logs.logs import create_logger
 from database import RAW_RECIPES_REF
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
 from database.engine import df_to_sql
@@ -45,7 +44,7 @@ def clean_ingredient_text(ingredient_item_text) -> dict | None:
 class HelloFreshRecipeCrawler:
     log = create_logger("HelloFreshScraper")
     base_link = "https://www.hellofresh.de/recipes/"
-    thread_output_path = f"{ROOT_DIR}/data/temp_data/.temp"
+    thread_output_path = "data/temp_data/.temp"
     num_threads = 5
 
     def __init__(self):

@@ -4,7 +4,7 @@ import pandas as pd
 import re
 import fitz
 from PIL import Image
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 
 import messaging.ingredients
 from database import CLEANED_RECIPES_REF

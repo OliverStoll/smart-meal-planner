@@ -1,5 +1,5 @@
 import pandas as pd
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 
 from database.engine import recipes_from_sql
 from src.messaging.callbacks.settings_types import UserSettings

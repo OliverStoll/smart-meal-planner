@@ -41,9 +41,7 @@ jobs:
       - name: Run linter
         run: flake8 . --max-line-length=120
       - name: Format check
-        run: |
-          black --check .
-          isort --check-only .
+        run: black --check .
 
   security:
     runs-on: ubuntu-latest

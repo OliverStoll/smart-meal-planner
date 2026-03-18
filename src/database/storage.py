@@ -1,6 +1,6 @@
 import os
 from io import BytesIO
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 

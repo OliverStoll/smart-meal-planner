@@ -2,7 +2,7 @@ from typing import Literal
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 from cachetools import TTLCache, cached
 
 from settings import PROJECT_NAME, DATABASE_URL, CACHE_DURATION_HOURS

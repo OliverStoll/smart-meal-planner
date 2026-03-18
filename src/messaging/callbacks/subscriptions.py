@@ -1,5 +1,5 @@
 from schedule import every
-from common_utils.logger import create_logger
+from logs.logs import create_logger
 
 from settings import NOSQL_SUBSCRIPTION_REF
 from database.nosql import nosql_client
@@ -39,7 +39,7 @@ def get_all_subscriptions() -> dict[int, int]:
 def set_user_subscription(chat_id, num_meals):
     log.info(f"Setting subscription for {chat_id} to {num_meals} meals.")
     ref = f"{NOSQL_SUBSCRIPTION_REF}/{chat_id}"
-    nosql_client().set_entry(ref=ref, data={"num_meals": num_meals})
+    nosql_client().set(ref=ref, data={"num_meals": num_meals})
 
 
 class SubscriptionHandler:

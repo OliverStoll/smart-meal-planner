@@ -3,8 +3,7 @@ import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-from common_utils.logger import create_logger
-
+from logs.logs import create_logger
 from settings import RECIPE_URL
 from data_ingestion.utils import scroll_driver_down
 from database.engine import df_from_sql, df_to_sql
