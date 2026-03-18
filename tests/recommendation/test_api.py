@@ -14,10 +14,7 @@ class EmbeddingsStub:
             input_list = input
         return SimpleNamespace(
             data=[
-                SimpleNamespace(
-                    embedding=np.ones(768).tolist(),
-                    index=i
-                )
+                SimpleNamespace(embedding=np.ones(768).tolist(), index=i)
                 for i, _ in enumerate(input_list)
             ]
         )

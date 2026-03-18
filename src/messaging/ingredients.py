@@ -83,9 +83,11 @@ def clean_ingredients_quantity_data(
     ingredients["quantity"] = ingredients["quantity"] * quantity_factor
     for min_value, round_digit in [(2, 0), (20, -1), (300, -2)]:  # TODO -> settings
         ingredients["quantity"] = ingredients.apply(
-            lambda x: round(x["quantity"], round_digit)
-            if x["quantity"] > min_value
-            else x["quantity"],
+            lambda x: (
+                round(x["quantity"], round_digit)
+                if x["quantity"] > min_value
+                else x["quantity"]
+            ),
             axis=1,
         )
     ingredients["quantity"] = ingredients["quantity"].apply(

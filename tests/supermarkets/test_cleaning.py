@@ -62,7 +62,14 @@ class TestCleanSellers:
 
 class TestSupermarketFriendlyNames:
     def test_contains_all_expected_supermarkets(self):
-        expected = ["Netto Marken-Discount", "Kaufland", "EDEKA", "Lidl", "Aldi Nord", "Rewe"]
+        expected = [
+            "Netto Marken-Discount",
+            "Kaufland",
+            "EDEKA",
+            "Lidl",
+            "Aldi Nord",
+            "Rewe",
+        ]
         for name in expected:
             assert name in SUPERMARKET_FRIENDLY_NAMES
 

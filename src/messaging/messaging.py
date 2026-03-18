@@ -123,7 +123,9 @@ def shopping_list_title(num_meals: int, meal_type: str, portions: int) -> str:
     return title_response
 
 
-def replace_single_recipe_in_data(recipes: pd.DataFrame, chat_id: int, recipe_id: str) -> tuple[pd.DataFrame, int]:
+def replace_single_recipe_in_data(
+    recipes: pd.DataFrame, chat_id: int, recipe_id: str
+) -> tuple[pd.DataFrame, int]:
     user_settings = get_user_settings(chat_id)
     new_recipe = sample_recipes(num_recipes=1, user_settings=user_settings)
     idx_to_replace = recipes.index[recipes["id"] == recipe_id].tolist()[0]

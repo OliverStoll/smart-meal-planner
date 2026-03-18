@@ -169,7 +169,9 @@ class TelegramBot:
             call_data = clean_call_data(call.data, prefix="option")
             chat_id = call.message.chat.id
             if len(call_data) != 2:
-                log.warning(f"Invalid callback data format: {call.data}, expected 2 args")
+                log.warning(
+                    f"Invalid callback data format: {call.data}, expected 2 args"
+                )
                 return
             setting_name, value = call_data
             handle_setting_user_setting_option(

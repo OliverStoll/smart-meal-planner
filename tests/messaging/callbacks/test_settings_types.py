@@ -19,7 +19,9 @@ class TestUserSettings:
         assert settings.cal_min == 0
 
     def test_custom_values(self):
-        settings = UserSettings(portions=4, meal_type="vegan", max_duration=30, cal_min=500)
+        settings = UserSettings(
+            portions=4, meal_type="vegan", max_duration=30, cal_min=500
+        )
         assert settings.portions == 4
         assert settings.meal_type == "vegan"
         assert settings.max_duration == 30
