@@ -15,12 +15,12 @@ class TestDataCleaning:
         cleaned_recipes = clean_recipes_data(raw_recipes)
         assert "ingredients" in cleaned_recipes.columns, "Expected 'ingredients' column after cleaning"
         assert "instructions" in cleaned_recipes.columns, "Expected 'instructions' column after cleaning"
-        assert cleaned_recipes["ingredients"].apply(lambda x: isinstance(x, list)).any(), (
-            "Expected 'ingredients' to be a list"
-        )
-        assert cleaned_recipes["instructions"].apply(lambda x: isinstance(x, list)).any(), (
-            "Expected 'instructions' to be a list"
-        )
+        assert (
+            cleaned_recipes["ingredients"].apply(lambda x: isinstance(x, list)).any()
+        ), "Expected 'ingredients' to be a list"
+        assert (
+            cleaned_recipes["instructions"].apply(lambda x: isinstance(x, list)).any()
+        ), "Expected 'instructions' to be a list"
 
 
 def test_format_cooking_time():
