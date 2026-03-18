@@ -1,5 +1,7 @@
 import pandas as pd
 from telebot import types, TeleBot
+
+from database.engine import recipes_from_sql
 from logs.logs import create_logger
 
 from messaging.callbacks.favorites import get_favorite_ids
@@ -22,7 +24,7 @@ FRIENDLY_MEAL_TYPES = {
     "vegan": "vegane ",
     "protein": "proteinreiche ",
 }
-last_sent_recipes_df: dict[str, pd.DataFrame] = {}
+last_sent_recipes_df: dict[int, pd.DataFrame] = {}
 
 
 def send_full_message(
@@ -52,14 +54,14 @@ def send_full_message(
         return
 
     user_settings = get_user_settings(chat_id=chat_id)
-
     num_meals = num_meals or len(recipes_to_send)
+    all_recipes = recipes_from_sql()
     if recipes_to_send is None:
         recipes_to_send = sample_recipes(
-            num_recipes=num_meals, user_settings=user_settings
+            num_recipes=num_meals, user_settings=user_settings, recipes=all_recipes
         )
     recipe_ids = recipes_to_send["id"].tolist()
-    last_sent_recipes_df[str(chat_id)] = recipes_to_send
+    last_sent_recipes_df[chat_id] = recipes_to_send
 
     ingredients = ingredients_shopping_list(
         recipes=recipes_to_send, num_portions=user_settings.portions
@@ -97,11 +99,7 @@ def send_full_message(
 
 
 def send_shopping_list_message(
-    bot: TeleBot,
-    chat_id: int,
-    title: str,
-    ingredients: str,
-    replace_msg_id: int | None,
+    bot: TeleBot, chat_id: int, title: str, ingredients: str, replace_msg_id: int | None
 ) -> types.Message:
     """Sends a message with the combined shopping list for the selected recipes."""
     message_args = {
@@ -140,9 +138,7 @@ def resend_messages_to_replace_meal(
     related_shopping_list_message_id: int,
     recipe_id: str,
 ):
-    last_sent_recipes: pd.DataFrame | None = last_sent_recipes_df.get(
-        str(chat_id), None
-    )
+    last_sent_recipes: pd.DataFrame | None = last_sent_recipes_df.get(chat_id, None)
     if last_sent_recipes is None:
         raise ValueError(f"No recipes found for chat ID {chat_id}.")
     updated_recipes, replaced_idx = replace_single_recipe_in_data(

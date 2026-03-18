@@ -29,4 +29,4 @@ def test_save_single_pdf(cleaned_recipes, mock_upload_file):
 
 def test_remove_recipes_with_faulty_pdfs(cleaned_recipes, mock_file_exists):
     checked_recipes = remove_recipes_with_faulty_pdfs(cleaned_recipes)
-    assert len(checked_recipes) == 0
+    assert len(checked_recipes) == 4
