@@ -1,8 +1,7 @@
 import os
-
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import numpy as np
-from threading import Thread
 from time import sleep
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -83,9 +82,7 @@ class HelloFreshRecipeCrawler:
         }
         os.makedirs(self.thread_output_path, exist_ok=True)
 
-    def get_all_recipes(
-        self, use_stored_links: bool, save_to_db: bool = True
-    ) -> pd.DataFrame:
+    def get_all_recipes(self, use_stored_links: bool, save_to_db: bool = True) -> pd.DataFrame:
         """
         Scrape all recipes from all categories and save them to a csv file.
 
@@ -97,39 +94,23 @@ class HelloFreshRecipeCrawler:
             DataFrame containing all recipes details.
         """
         os.makedirs(self.thread_output_path, exist_ok=True)
-        recipe_link_entries = self.link_crawler.assure_recipe_links(
-            use_stored=use_stored_links, save_to_db=True
-        )
-        threads = []
-        recipe_link_entires_split = np.array_split(
-            recipe_link_entries, self.num_threads
-        )
-        for idx, recipe_link_entries in enumerate(recipe_link_entires_split, start=1):
-            thread_output_path = f"{self.thread_output_path}/{idx}_recipes.csv"
-            driver = create_driver()
-            thread = Thread(
-                target=self.get_all_recipes_details,
-                args=(recipe_link_entries, thread_output_path, driver),
-            )
-            thread.start()
-            threads.append(thread)
-        for thread in threads:
-            thread.join()
-        self.log.info("All threads finished.")
-        all_recipes_details = []
-        for idx in range(1, self.num_threads + 1):
-            thread_output_path = f"{self.thread_output_path}/{idx}_recipes.csv"
-            if os.path.exists(thread_output_path):
-                recipes_df = pd.read_csv(thread_output_path)
-                all_recipes_details.append(recipes_df)
+        all_recipe_links = self.link_crawler.assure_recipe_links(use_stored=use_stored_links, save_to_db=True)
+        recipe_links_split = np.array_split(all_recipe_links, self.num_threads)
+
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for thread_id, thread_recipe_links in enumerate(recipe_links_split, start=1):
+                thread_recipe_links = pd.DataFrame(thread_recipe_links, columns=all_recipe_links.columns)
+                future = executor.submit(self.get_all_recipes_details, thread_recipe_links, create_driver())
+                futures.append(future)
+
+        all_recipes_details: list[pd.DataFrame] = [future.result() for future in futures]
         recipes_details = pd.concat(all_recipes_details, ignore_index=True)
         if save_to_db:
             df_to_sql(ref=RAW_RECIPES_REF, df=recipes_details)
         return recipes_details
 
-    def get_all_recipes_details(
-        self, recipe_link_entries: pd.DataFrame, save_path: str, driver: WebDriver
-    ) -> pd.DataFrame:
+    def get_all_recipes_details(self, recipe_link_entries: pd.DataFrame, driver: WebDriver) -> pd.DataFrame:
         """
         Scrape all recipes from a list of recipe links.
 
@@ -141,25 +122,17 @@ class HelloFreshRecipeCrawler:
             DataFrame containing all recipies details.
         """
         all_recipes_details = []
-        for idx, recipe_data in enumerate(
-            recipe_link_entries.to_dict(orient="records"), start=1
-        ):
+        for idx, recipe_data in enumerate(recipe_link_entries.to_dict(orient="records"), start=1):
             try:
                 recipe_values = self.get_recipe_details(recipe_data, driver)
                 self.log.debug(f"[{idx:3>}] {recipe_values['title']} - {recipe_values}")
                 all_recipes_details.append(recipe_values)
             except Exception as e:
-                self.log.error(
-                    f"Error in getting details from {recipe_data['link']}: {e}"
-                )
+                self.log.error(f"Error in getting details from {recipe_data['link']}: {e}")
         all_recipes_details = pd.DataFrame(all_recipes_details)
-        all_recipes_details.to_csv(save_path, index=False)
-        self.log.info(f"Recipes saved to {save_path}")
         return all_recipes_details
 
-    def get_recipe_details(
-        self, recipe_data_row: dict[str, str | None], driver: WebDriver
-    ) -> dict:
+    def get_recipe_details(self, recipe_data_row: dict[str, str | None], driver: WebDriver) -> dict:
         driver.get(recipe_data_row["link"])
         for attribute_name, attribute_crawl_config in self.crawling_config.items():
             try:
@@ -175,9 +148,7 @@ class HelloFreshRecipeCrawler:
                 recipe_data_row[attribute_name] = None
         return recipe_data_row
 
-    def get_recipe_attribute_value(
-        self, attribute_name: str, config: dict, driver: WebDriver
-    ) -> dict:
+    def get_recipe_attribute_value(self, attribute_name: str, config: dict, driver: WebDriver) -> dict:
         """
         Get a single recipe detail value using the provided getter function.
 
@@ -185,9 +156,7 @@ class HelloFreshRecipeCrawler:
             attribute_name: Name of the recipe detail to get.
             config: Details to get the recipe detail value.
         """
-        detail_element = driver.find_element(
-            by=By.CSS_SELECTOR, value=config["selector"]
-        )
+        detail_element = driver.find_element(by=By.CSS_SELECTOR, value=config["selector"])
         if "postprocessing_fn" in config:
             return config["postprocessing_fn"](detail_element)
         else:
@@ -237,19 +206,13 @@ class HelloFreshRecipeCrawler:
         }
 
     def _get_instructions(self, element):
-        instructions_steps = element.find_elements(
-            By.CSS_SELECTOR, 'div[data-test-id="instruction-step"]'
-        )
-        instructions_text = [
-            instruction_step.text for instruction_step in instructions_steps
-        ]
+        instructions_steps = element.find_elements(By.CSS_SELECTOR, 'div[data-test-id="instruction-step"]')
+        instructions_text = [instruction_step.text for instruction_step in instructions_steps]
         instruction_image_links = []
         for instruction_step in instructions_steps:
             try:
                 instruction_image_links.append(
-                    instruction_step.find_element(By.CSS_SELECTOR, "img").get_attribute(
-                        "src"
-                    )
+                    instruction_step.find_element(By.CSS_SELECTOR, "img").get_attribute("src")
                 )
             except NoSuchElementException:
                 instruction_image_links.append(None)
