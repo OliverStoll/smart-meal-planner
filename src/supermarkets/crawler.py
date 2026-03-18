@@ -59,7 +59,7 @@ class SupermarketScraper:
                 results[selector] = None
         return results
 
-    def scrape_products_threaded(self, product_links, driver, thread_id):
+    def scrape_products_threaded(self, product_links, driver, thread_id) -> list[dict]:
         all_product_results = []
         for idx, link in enumerate(product_links):
             try:
@@ -72,6 +72,7 @@ class SupermarketScraper:
                 exception_type = type(e).__name__
                 self.log.error(f"[{thread_id}][{idx}] {link} | {exception_type}")
         self.threaded_results[thread_id] = all_product_results
+        return all_product_results
 
     def scrape_all_products(self, supermarket: str | None = None):
         self.log.info(f"Scraping {supermarket if supermarket else 'all supermarkets'}")

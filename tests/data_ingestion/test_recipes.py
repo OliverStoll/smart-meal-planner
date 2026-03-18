@@ -38,7 +38,6 @@ class TestHelloFreshScraper:
         assert len(recipes) == len(
             recipe_links
         ), "Expected the number of recipes to match the number of recipe links"
-
         assert self.expected_recipes_columns.issubset(
             set(recipes.columns)
         ), f"Expected columns {self.expected_recipes_columns} in the recipes"

@@ -96,10 +96,10 @@ class HelloFreshRecipeCrawler:
         Returns:
             DataFrame containing all recipes details.
         """
+        os.makedirs(self.thread_output_path, exist_ok=True)
         recipe_link_entries = self.link_crawler.assure_recipe_links(
             use_stored=use_stored_links, save_to_db=True
         )
-
         threads = []
         recipe_link_entires_split = np.array_split(
             recipe_link_entries, self.num_threads
