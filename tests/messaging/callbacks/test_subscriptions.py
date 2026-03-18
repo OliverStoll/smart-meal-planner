@@ -1,5 +1,3 @@
-from unittest.mock import Mock
-
 from messaging.callbacks.subscriptions import get_all_subscriptions, SubscriptionHandler
 
 

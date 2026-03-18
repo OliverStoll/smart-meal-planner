@@ -56,7 +56,7 @@ def register_callback(bot: telebot.TeleBot, prefix: str):
 
 
 def clean_call_data(call_data: str, prefix: str) -> list[str]:
-    call_data = call_data[len(prefix + CALLBACK_DELIM) :]
+    call_data = call_data[len(prefix + CALLBACK_DELIM) :]  # noqa
     return call_data.split(CALLBACK_DELIM)
 
 

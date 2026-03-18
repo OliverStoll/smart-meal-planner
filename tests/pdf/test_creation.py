@@ -25,5 +25,3 @@ def test_create_pdfs_threaded(cleaned_recipes, mock_upload_file):
     create_pdfs_threaded(
         recipes=cleaned_recipes[:1], num_meals=[1], num_threads_per_mealsize=1
     )
-
-

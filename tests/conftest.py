@@ -1,12 +1,9 @@
 import ast
 import os
 from pathlib import Path
-from unittest.mock import Mock
 
 import pandas as pd
 import pytest
-
-from settings import ROOT_DIR
 
 # Set DOCKER_WORKDIR so common_utils can resolve the project ROOT_DIR
 os.environ.setdefault("DOCKER_WORKDIR", str(Path(__file__).parent.parent))
@@ -29,18 +26,17 @@ def single_category_path():
 
 @pytest.fixture
 def recipe_links():
-    return pd.read_csv(ROOT_DIR / "tests/fixtures/recipe_links.csv")
+    return pd.read_csv("tests/fixtures/recipe_links.csv")
 
 
 @pytest.fixture
 def raw_recipes():
-    return pd.read_csv(ROOT_DIR / "tests/fixtures/recipes_raw.csv")
+    return pd.read_csv("tests/fixtures/recipes_raw.csv")
 
 
 @pytest.fixture
 def cleaned_recipes():
-    df = pd.read_csv(ROOT_DIR / "tests/fixtures/recipes_cleaned.csv")
+    df = pd.read_csv("tests/fixtures/recipes_cleaned.csv")
     for column in ["ingredients", "instructions", "instruction_images"]:
         df[column] = df[column].apply(ast.literal_eval)
     return df
-

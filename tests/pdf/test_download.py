@@ -11,6 +11,7 @@ def mock_upload_file(monkeypatch):
     monkeypatch.setattr("pdf.download.upload_file", mock)
     return mock
 
+
 @pytest.fixture
 def mock_file_exists(monkeypatch):
     mock = Mock()
