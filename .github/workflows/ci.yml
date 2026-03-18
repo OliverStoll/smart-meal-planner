@@ -40,7 +40,7 @@ jobs:
       - name: Run linter
         run: flake8 . --max-line-length=120
       - name: Format check
-        run: black --check .
+        run: black --check --line-length 120 .
 
   security:
     runs-on: ubuntu-latest
