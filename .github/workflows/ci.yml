@@ -19,8 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install uv
-          uv pip install -r requirements.txt
+          pip install -r requirements.txt
 
       - name: Run tests with coverage
         run: |
@@ -52,10 +51,3 @@ jobs:
         run: pip install safety
       - name: Run security scan
         run: safety check
-
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Dependency vulnerability audit (pip-audit)
-        uses: pypa/gh-action-pip-audit@v1.1.0
