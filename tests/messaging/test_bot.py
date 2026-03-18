@@ -1,6 +1,4 @@
 import os
-from multiprocessing.managers import Value
-
 import pytest
 from telebot import TeleBot
 

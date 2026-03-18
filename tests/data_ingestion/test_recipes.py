@@ -4,7 +4,10 @@ import pandas as pd
 import pytest
 
 from data_ingestion.crawler.links import HelloFreshLinkCrawler
-from data_ingestion.crawler.recipes import HelloFreshRecipeCrawler, clean_ingredient_text
+from data_ingestion.crawler.recipes import (
+    HelloFreshRecipeCrawler,
+    clean_ingredient_text,
+)
 from web.driver import create_driver
 
 
@@ -60,6 +63,7 @@ class TestHelloFreshScraper:
             output_file
         ), f"Expected the recipe details to be saved to f{output_file}"
         os.remove(output_file)
+
 
 @pytest.mark.parametrize(
     "input_text,expected",
