@@ -19,5 +19,5 @@ def unfavorize_recipe(chat_id: int, recipe_id: str):
 def get_favorite_ids(chat_id: int) -> list[str]:
     ref = f"{NOSQL_FAVORITES_REF}/{chat_id}"
     favorites = nosql_client().get(ref=ref)
-    favorites_ids = [int(key) for key in favorites.keys()] if favorites else []
+    favorites_ids = [key for key in favorites.keys()] if favorites else []
     return favorites_ids

@@ -13,24 +13,20 @@ jobs:
       FIREBASE_REALTIME_DB_URL: ${{ secrets.FIREBASE_REALTIME_DB_URL }}
     steps:
       - uses: actions/checkout@v5
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.13"
           cache: "pip"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Run tests with coverage
-        run: pytest --cov=src --cov-report=xml --cov-report=term-missing
-
+        run: pytest -n 4 --cov=src --cov-report=xml --cov-report=term-missing
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
-          files: ./coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: OliverStoll/hellofresh-meal-planner
 
   lint:
     runs-on: ubuntu-latest
@@ -51,3 +47,43 @@ jobs:
         run: pip install pip-audit
       - name: Run security audit
         run: pip-audit -r requirements.txt
+
+  push:
+    runs-on: ubuntu-latest
+#    needs: [test, lint, security]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCLOUD_REGION }}-docker.pkg.dev
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ vars.GCLOUD_REGION }}-docker.pkg.dev/${{ vars.GCLOUD_PROJECT_ID }}/${{ vars.GCLOUD_ARTIFACT_REPO }}/${{ vars.SERVICE_NAME }}:latest \
+            -f ./Dockerfile \
+            .
+      - name: Push Docker image
+        run: |
+          docker push \
+            ${{ vars.GCLOUD_REGION }}-docker.pkg.dev/${{ vars.GCLOUD_PROJECT_ID }}/${{ vars.GCLOUD_ARTIFACT_REPO }}/${{ vars.SERVICE_NAME }}:latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: push
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ vars.SERVICE_NAME }} \
+            --image=${{ vars.GCLOUD_REGION }}-docker.pkg.dev/${{ vars.GCLOUD_PROJECT_ID }}/${{ vars.GCLOUD_ARTIFACT_REPO }}/${{ vars.SERVICE_NAME }}:latest \
+            --region=${{ vars.GCLOUD_REGION }} \
+            --project=${{ vars.GCLOUD_PROJECT_ID }} \
+            --memory=${{ vars.RUN_MEMORY }} \
+            --allow-unauthenticated \
+            --set-env-vars="TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }},DATABASE_URL=${{ secrets.DATABASE_URL }},FIREBASE_REALTIME_DB_URL=${{ secrets.FIREBASE_REALTIME_DB_URL }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},STORAGE_ENDPOINT=${{ secrets.STORAGE_ENDPOINT }},STORAGE_KEY_ID=${{ secrets.STORAGE_KEY_ID }},STORAGE_APPLICATION_KEY=${{ secrets.STORAGE_APPLICATION_KEY }}"

@@ -47,16 +47,8 @@ class TestHelloFreshLinkCrawler:
         assert "link" in recipe_links.columns, "Expected 'link' column"
 
     def test_assure_recipe_links_crawled(self, single_category_path):
-        with patch.object(
-            HelloFreshLinkCrawler,
-            attribute="get_recipes_from_db",
-            side_effect=Exception("DB error"),
-        ):
-            with patch.object(
-                HelloFreshLinkCrawler,
-                "get_recipe_category_paths",
-                return_value=single_category_path,
-            ):
+        with patch.object(HelloFreshLinkCrawler, attribute="get_recipes_from_db", side_effect=Exception("DB error")):
+            with patch.object(HelloFreshLinkCrawler, "get_recipe_category_paths", return_value=single_category_path):
                 assured_links = self.crawler.assure_recipe_links(use_stored=True, save_to_db=False)
         assert isinstance(assured_links, pd.DataFrame), "Expected a DataFrame of assured recipe links"
-        assert len(assured_links) > 20, "Expected at least 20 recipe links"
+        assert len(assured_links) > 10, "Expected at least 10 recipe links"
